@@ -1,0 +1,162 @@
+# Revenue Sentinel — CI
+#
+# Runs entirely OFFLINE. No ANTHROPIC_API_KEY, no network calls to any model
+# provider. DEMO_MODE=fixture replays recorded responses (ADR-0007).
+#
+# Rule 13: no gate here is ever bypassed. No `continue-on-error`, no skipped
+# tests, no loosened assertions to get green.
+#
+# The `test` job is a no-op placeholder until Session 1 creates the test suite.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DEMO_MODE: fixture
+  APP_ENV: ci
+  SEED: "20260801"
+  EVALUATION_TIMESTAMP: "2026-08-01T12:00:00Z"
+
+jobs:
+  quality:
+    name: Lint, format, types, boundaries
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Guard — no application code yet (Phase 1 only)
+        id: guard
+        run: |
+          if [ -d src/revenue_sentinel ] && \
+             [ -n "$(find src/revenue_sentinel -name '*.py' ! -name '__init__.py' -print -quit)" ]; then
+            echo "has_code=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_code=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No application code yet — quality gates activate in Session 1."
+          fi
+
+      - name: Install dependencies
+        if: steps.guard.outputs.has_code == 'true'
+        run: uv sync --all-extras
+
+      - name: Ruff lint
+        if: steps.guard.outputs.has_code == 'true'
+        run: uv run ruff check --output-format=github .
+
+      - name: Ruff format check
+        if: steps.guard.outputs.has_code == 'true'
+        run: uv run ruff format --check .
+
+      - name: Mypy (strict)
+        if: steps.guard.outputs.has_code == 'true'
+        run: uv run mypy src
+
+      - name: Layer boundaries (import-linter)
+        if: steps.guard.outputs.has_code == 'true'
+        run: uv run lint-imports
+
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    needs: quality
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: sentinel
+          POSTGRES_PASSWORD: sentinel_ci
+          POSTGRES_DB: revenue_sentinel
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sentinel -d revenue_sentinel"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # CI has no port conflict, so the standard port is fine here. Local
+      # development uses 55432 — see docker-compose.yml.
+      DATABASE_URL: postgresql+psycopg://sentinel:sentinel_ci@localhost:5432/revenue_sentinel
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Guard — no test suite yet (Phase 1 only)
+        id: guard
+        run: |
+          if [ -n "$(find tests -name 'test_*.py' -print -quit 2>/dev/null)" ]; then
+            echo "has_tests=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_tests=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No test suite yet — activates in Session 1."
+          fi
+
+      - name: Install dependencies
+        if: steps.guard.outputs.has_tests == 'true'
+        run: uv sync --all-extras
+
+      - name: Migrate
+        if: steps.guard.outputs.has_tests == 'true'
+        run: uv run alembic upgrade head
+
+      - name: Unit and integration tests
+        if: steps.guard.outputs.has_tests == 'true'
+        run: uv run pytest tests/unit tests/integration -ra
+
+      - name: Workflow evaluation suite
+        if: steps.guard.outputs.has_tests == 'true'
+        run: uv run pytest tests/evaluation -ra
+
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fail if a real Anthropic key is present
+        run: |
+          # Matches the live-key prefix only — the literal string
+          # "ANTHROPIC_API_KEY=" in .env.example is fine.
+          if grep -rIn --exclude-dir=.git -E 'sk-ant-[A-Za-z0-9]' .; then
+            echo "::error::Possible Anthropic API key committed."
+            exit 1
+          fi
+          echo "No API key patterns found."
+
+      - name: Fail if .env is tracked
+        run: |
+          if git ls-files --error-unmatch .env >/dev/null 2>&1; then
+            echo "::error::.env is tracked by git. It must be ignored."
+            exit 1
+          fi
+          echo ".env is not tracked."

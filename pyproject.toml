@@ -1,0 +1,196 @@
+[project]
+name = "revenue-sentinel"
+version = "0.1.0"
+description = "Agentic AI GTM Control Tower — detects revenue leakage, investigates with specialized agents, enforces policy, and executes approved workflows"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [{ name = "Mahima Advilkar" }]
+
+# NOTE: dependencies are DECLARED here, not installed. Installation happens in
+# Session 1 via `make setup`. See PROJECT_STATUS.md.
+dependencies = [
+    # Web
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    # Models and config
+    "pydantic>=2.9",
+    "pydantic-settings>=2.6",
+    # Persistence
+    "sqlalchemy>=2.0.36",
+    "alembic>=1.14",
+    "psycopg[binary]>=3.2",
+    # Orchestration — see ADR-0002: orchestration only, not the architecture
+    "langgraph>=0.2.50",
+    # MCP — the custom GTM server
+    "mcp>=1.1",
+    # LLM
+    "anthropic>=0.40",
+    # Observability
+    "structlog>=24.4",
+    "opentelemetry-api>=1.28",
+    "opentelemetry-sdk>=1.28",
+    # Utilities
+    "httpx>=0.28",
+    "typer>=0.15",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "pytest-cov>=6.0",
+    "ruff>=0.8",
+    "mypy>=1.13",
+    "import-linter>=2.1",
+    "types-python-dateutil>=2.9",
+]
+
+[project.scripts]
+revenue-sentinel = "revenue_sentinel.cli:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/revenue_sentinel"]
+
+# ---------------------------------------------------------------------------
+# Ruff — lint and format
+# ---------------------------------------------------------------------------
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",    # pycodestyle
+    "F",         # pyflakes
+    "I",         # isort
+    "N",         # pep8-naming
+    "UP",        # pyupgrade
+    "B",         # bugbear
+    "A",         # builtins shadowing
+    "C4",        # comprehensions
+    "DTZ",       # naive datetimes — every timestamp must be tz-aware
+    "T20",       # no print() in library code
+    "SIM",       # simplify
+    "PTH",       # use pathlib
+    "RUF",       # ruff-specific
+    "S",         # bandit security
+    "ASYNC",     # async correctness
+]
+ignore = [
+    "S101",      # assert — used extensively and correctly in tests
+]
+
+# Rule 13: this section is for rules that do not apply in a context, never for
+# silencing a finding that should be fixed.
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S105", "S106"]   # hardcoded test fixtures, never real secrets
+"scripts/**/*.py" = ["T20"]          # CLI scripts legitimately print
+
+[tool.ruff.lint.isort]
+known-first-party = ["revenue_sentinel"]
+
+[tool.ruff.format]
+docstring-code-format = true
+
+# ---------------------------------------------------------------------------
+# Mypy
+# ---------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unreachable = true
+plugins = ["pydantic.mypy"]
+
+# domain/ and analytics/ are held to the strictest bar — they are pure, typed,
+# and carry the money math. See ADR-0003.
+[[tool.mypy.overrides]]
+module = ["revenue_sentinel.domain.*", "revenue_sentinel.analytics.*"]
+disallow_any_explicit = true
+
+[[tool.mypy.overrides]]
+module = ["langgraph.*", "mcp.*"]
+ignore_missing_imports = true
+
+# ---------------------------------------------------------------------------
+# Pytest
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "--strict-markers --strict-config -ra"
+markers = [
+    "security: prompt-injection and policy-bypass cases",
+    "evaluation: workflow rubric checks",
+    "live: requires ANTHROPIC_API_KEY and network — never run in CI",
+]
+
+[tool.coverage.run]
+source = ["src/revenue_sentinel"]
+branch = true
+
+# ---------------------------------------------------------------------------
+# import-linter — layer boundaries are enforced, not requested.
+# See docs/system-architecture.md §3. A new package without a contract is a
+# boundary that is not being checked.
+# ---------------------------------------------------------------------------
+[tool.importlinter]
+root_package = "revenue_sentinel"
+
+[[tool.importlinter.contracts]]
+name = "R1 domain/ is pure — no I/O, no persistence, no integrations"
+type = "forbidden"
+source_modules = ["revenue_sentinel.domain"]
+forbidden_modules = [
+    "revenue_sentinel.db",
+    "revenue_sentinel.api",
+    "revenue_sentinel.integrations",
+    "revenue_sentinel.mcp",
+    "revenue_sentinel.intelligence",
+]
+
+[[tool.importlinter.contracts]]
+name = "R2 api/ routers are thin — no db internals, no LLM, no MCP"
+type = "forbidden"
+source_modules = ["revenue_sentinel.api"]
+forbidden_modules = [
+    "revenue_sentinel.intelligence",
+    "revenue_sentinel.mcp",
+]
+
+[[tool.importlinter.contracts]]
+name = "R3 analytics/ can never reach an LLM — money math is deterministic"
+type = "forbidden"
+source_modules = ["revenue_sentinel.analytics"]
+forbidden_modules = [
+    "revenue_sentinel.intelligence",
+    "revenue_sentinel.agents",
+]
+
+[[tool.importlinter.contracts]]
+name = "R4 execution/ acts only through mcp/, never on an adapter directly"
+type = "forbidden"
+source_modules = ["revenue_sentinel.execution"]
+forbidden_modules = ["revenue_sentinel.integrations"]
+
+[[tool.importlinter.contracts]]
+name = "R5 agents/ are pure functions of state — no persistence"
+type = "forbidden"
+source_modules = ["revenue_sentinel.agents"]
+forbidden_modules = ["revenue_sentinel.db"]
+
+[[tool.importlinter.contracts]]
+name = "R6 evaluation/ is imported only by tests and the eval CLI"
+type = "forbidden"
+source_modules = [
+    "revenue_sentinel.agents",
+    "revenue_sentinel.orchestration",
+    "revenue_sentinel.governance",
+    "revenue_sentinel.execution",
+]
+forbidden_modules = ["revenue_sentinel.evaluation"]

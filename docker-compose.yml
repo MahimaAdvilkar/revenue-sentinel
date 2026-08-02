@@ -1,0 +1,37 @@
+# Revenue Sentinel — local infrastructure.
+#
+# ONE container. PostgreSQL only. No broker, no cache, no OTel collector —
+# see ADR-0006 and rule 17 (do not install unnecessary infrastructure).
+#
+# HOST PORT 55432 IS DELIBERATE. A Homebrew PostgreSQL 16 occupies 5432 on the
+# development machine; binding there would silently connect the application to
+# the wrong database. Do not "fix" this to 5432.
+
+name: revenue-sentinel
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: revenue-sentinel-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-sentinel}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sentinel_local_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-revenue_sentinel}
+      # Deterministic collation — keeps ORDER BY stable across machines, which
+      # matters because the demo asserts on ordered output.
+      POSTGRES_INITDB_ARGS: "--locale=C --encoding=UTF8"
+    ports:
+      - "${POSTGRES_HOST_PORT:-55432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-sentinel} -d ${POSTGRES_DB:-revenue_sentinel}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  postgres_data:
+    name: revenue-sentinel-pgdata
