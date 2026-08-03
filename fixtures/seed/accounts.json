@@ -1,0 +1,86 @@
+{
+  "$schema_note": "Synthetic data. Every name, company, address, and email here is invented. No real or employer data appears in this repository. Offsets are expressed in days before EVALUATION_TIMESTAMP so the scenario stays fixed relative to the injected clock rather than to the wall clock.",
+  "count": 10,
+  "accounts": [
+    {
+      "account_ref": "ACC-1001",
+      "name": "Northwind Logistics",
+      "segment": "mid_market",
+      "industry": "Transportation & Logistics",
+      "employee_count": 850,
+      "owner_id": "USR-77"
+    },
+    {
+      "account_ref": "ACC-1002",
+      "name": "Calder & Vane Analytics",
+      "segment": "enterprise",
+      "industry": "Software",
+      "employee_count": 4200,
+      "owner_id": "USR-12"
+    },
+    {
+      "account_ref": "ACC-1003",
+      "name": "Harbourline Freight",
+      "segment": "mid_market",
+      "industry": "Transportation & Logistics",
+      "employee_count": 610,
+      "owner_id": "USR-77"
+    },
+    {
+      "account_ref": "ACC-1004",
+      "name": "Pinegrove Health Group",
+      "segment": "enterprise",
+      "industry": "Healthcare",
+      "employee_count": 9100,
+      "owner_id": "USR-31"
+    },
+    {
+      "account_ref": "ACC-1005",
+      "name": "Tarrow Retail Systems",
+      "segment": "mid_market",
+      "industry": "Retail",
+      "employee_count": 480,
+      "owner_id": "USR-12"
+    },
+    {
+      "account_ref": "ACC-1006",
+      "name": "Bexley Manufacturing",
+      "segment": "mid_market",
+      "industry": "Manufacturing",
+      "employee_count": 730,
+      "owner_id": "USR-31"
+    },
+    {
+      "account_ref": "ACC-1007",
+      "name": "Quillfeather Media",
+      "segment": "smb",
+      "industry": "Media",
+      "employee_count": 95,
+      "owner_id": "USR-58"
+    },
+    {
+      "account_ref": "ACC-1008",
+      "name": "Ashcombe Financial",
+      "segment": "enterprise",
+      "industry": "Financial Services",
+      "employee_count": 6400,
+      "owner_id": "USR-12"
+    },
+    {
+      "account_ref": "ACC-1009",
+      "name": "Larkfield Energy",
+      "segment": "mid_market",
+      "industry": "Energy",
+      "employee_count": 520,
+      "owner_id": "USR-58"
+    },
+    {
+      "account_ref": "ACC-1010",
+      "name": "Doverton Education",
+      "segment": "smb",
+      "industry": "Education",
+      "employee_count": 140,
+      "owner_id": "USR-31"
+    }
+  ]
+}

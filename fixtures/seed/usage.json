@@ -1,0 +1,186 @@
+{
+  "$schema_note": "Synthetic data. Every name, company, address, and email here is invented. No real or employer data appears in this repository. Offsets are expressed in days before EVALUATION_TIMESTAMP so the scenario stays fixed relative to the injected clock rather than to the wall clock.",
+  "count": 20,
+  "usage_snapshots": [
+    {
+      "account_ref": "ACC-1001",
+      "period_start_days_before": 14,
+      "period_end_days_before": 8,
+      "active_users": 12,
+      "sessions": 96,
+      "feature_events": 1250,
+      "usage_score": "61.50"
+    },
+    {
+      "account_ref": "ACC-1001",
+      "period_start_days_before": 7,
+      "period_end_days_before": 1,
+      "active_users": 19,
+      "sessions": 154,
+      "feature_events": 1750,
+      "usage_score": "78.25"
+    },
+    {
+      "account_ref": "ACC-1002",
+      "period_start_days_before": 14,
+      "period_end_days_before": 8,
+      "active_users": 210,
+      "sessions": 1840,
+      "feature_events": 24500,
+      "usage_score": "88.00"
+    },
+    {
+      "account_ref": "ACC-1002",
+      "period_start_days_before": 7,
+      "period_end_days_before": 1,
+      "active_users": 218,
+      "sessions": 1902,
+      "feature_events": 25100,
+      "usage_score": "89.10"
+    },
+    {
+      "account_ref": "ACC-1003",
+      "period_start_days_before": 14,
+      "period_end_days_before": 8,
+      "active_users": 34,
+      "sessions": 260,
+      "feature_events": 3100,
+      "usage_score": "55.00"
+    },
+    {
+      "account_ref": "ACC-1003",
+      "period_start_days_before": 7,
+      "period_end_days_before": 1,
+      "active_users": 36,
+      "sessions": 271,
+      "feature_events": 3250,
+      "usage_score": "56.40"
+    },
+    {
+      "account_ref": "ACC-1004",
+      "period_start_days_before": 14,
+      "period_end_days_before": 8,
+      "active_users": 410,
+      "sessions": 3100,
+      "feature_events": 41000,
+      "usage_score": "72.00"
+    },
+    {
+      "account_ref": "ACC-1004",
+      "period_start_days_before": 7,
+      "period_end_days_before": 1,
+      "active_users": 438,
+      "sessions": 3320,
+      "feature_events": 44280,
+      "usage_score": "74.30"
+    },
+    {
+      "account_ref": "ACC-1005",
+      "period_start_days_before": 14,
+      "period_end_days_before": 8,
+      "active_users": 88,
+      "sessions": 640,
+      "feature_events": 7900,
+      "usage_score": "64.00"
+    },
+    {
+      "account_ref": "ACC-1005",
+      "period_start_days_before": 7,
+      "period_end_days_before": 1,
+      "active_users": 90,
+      "sessions": 651,
+      "feature_events": 8050,
+      "usage_score": "64.80"
+    },
+    {
+      "account_ref": "ACC-1006",
+      "period_start_days_before": 14,
+      "period_end_days_before": 8,
+      "active_users": 120,
+      "sessions": 910,
+      "feature_events": 11200,
+      "usage_score": "68.00"
+    },
+    {
+      "account_ref": "ACC-1006",
+      "period_start_days_before": 7,
+      "period_end_days_before": 1,
+      "active_users": 124,
+      "sessions": 934,
+      "feature_events": 11540,
+      "usage_score": "68.90"
+    },
+    {
+      "account_ref": "ACC-1007",
+      "period_start_days_before": 14,
+      "period_end_days_before": 8,
+      "active_users": 14,
+      "sessions": 88,
+      "feature_events": 900,
+      "usage_score": "41.00"
+    },
+    {
+      "account_ref": "ACC-1007",
+      "period_start_days_before": 7,
+      "period_end_days_before": 1,
+      "active_users": 15,
+      "sessions": 92,
+      "feature_events": 940,
+      "usage_score": "42.10"
+    },
+    {
+      "account_ref": "ACC-1008",
+      "period_start_days_before": 14,
+      "period_end_days_before": 8,
+      "active_users": 520,
+      "sessions": 4100,
+      "feature_events": 58000,
+      "usage_score": "91.00"
+    },
+    {
+      "account_ref": "ACC-1008",
+      "period_start_days_before": 7,
+      "period_end_days_before": 1,
+      "active_users": 531,
+      "sessions": 4180,
+      "feature_events": 59200,
+      "usage_score": "91.60"
+    },
+    {
+      "account_ref": "ACC-1009",
+      "period_start_days_before": 14,
+      "period_end_days_before": 8,
+      "active_users": 76,
+      "sessions": 590,
+      "feature_events": 6800,
+      "usage_score": "58.00"
+    },
+    {
+      "account_ref": "ACC-1009",
+      "period_start_days_before": 7,
+      "period_end_days_before": 1,
+      "active_users": 67,
+      "sessions": 512,
+      "feature_events": 5984,
+      "usage_score": "52.30"
+    },
+    {
+      "account_ref": "ACC-1010",
+      "period_start_days_before": 14,
+      "period_end_days_before": 8,
+      "active_users": 22,
+      "sessions": 140,
+      "feature_events": 1500,
+      "usage_score": "44.00"
+    },
+    {
+      "account_ref": "ACC-1010",
+      "period_start_days_before": 7,
+      "period_end_days_before": 1,
+      "active_users": 23,
+      "sessions": 146,
+      "feature_events": 1560,
+      "usage_score": "44.90"
+    }
+  ]
+}

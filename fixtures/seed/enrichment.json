@@ -1,0 +1,121 @@
+{
+  "$schema_note": "Synthetic data. Every name, company, address, and email here is invented. No real or employer data appears in this repository. Offsets are expressed in days before EVALUATION_TIMESTAMP so the scenario stays fixed relative to the injected clock rather than to the wall clock.",
+  "count": 10,
+  "company_profiles": [
+    {
+      "account_ref": "ACC-1001",
+      "hq_country": "United States",
+      "revenue_band": "$100M-$250M",
+      "tech_stack": {
+        "crm": "simulated",
+        "cloud": "aws",
+        "data_warehouse": "snowflake",
+        "bi": "looker"
+      },
+      "enriched_days_before_evaluation": 20,
+      "source": "simulated_enrichment"
+    },
+    {
+      "account_ref": "ACC-1002",
+      "hq_country": "United Kingdom",
+      "revenue_band": "$500M-$1B",
+      "tech_stack": {
+        "crm": "simulated",
+        "cloud": "gcp",
+        "data_warehouse": "bigquery"
+      },
+      "enriched_days_before_evaluation": 20,
+      "source": "simulated_enrichment"
+    },
+    {
+      "account_ref": "ACC-1003",
+      "hq_country": "United States",
+      "revenue_band": "$50M-$100M",
+      "tech_stack": {
+        "crm": "simulated",
+        "cloud": "aws"
+      },
+      "enriched_days_before_evaluation": 20,
+      "source": "simulated_enrichment"
+    },
+    {
+      "account_ref": "ACC-1004",
+      "hq_country": "Canada",
+      "revenue_band": "$1B+",
+      "tech_stack": {
+        "crm": "simulated",
+        "cloud": "azure",
+        "data_warehouse": "synapse"
+      },
+      "enriched_days_before_evaluation": 20,
+      "source": "simulated_enrichment"
+    },
+    {
+      "account_ref": "ACC-1005",
+      "hq_country": "Australia",
+      "revenue_band": "$50M-$100M",
+      "tech_stack": {
+        "crm": "simulated",
+        "cloud": "aws"
+      },
+      "enriched_days_before_evaluation": 20,
+      "source": "simulated_enrichment"
+    },
+    {
+      "account_ref": "ACC-1006",
+      "hq_country": "Germany",
+      "revenue_band": "$100M-$250M",
+      "tech_stack": {
+        "crm": "simulated",
+        "cloud": "azure"
+      },
+      "enriched_days_before_evaluation": 20,
+      "source": "simulated_enrichment"
+    },
+    {
+      "account_ref": "ACC-1007",
+      "hq_country": "Ireland",
+      "revenue_band": "$10M-$50M",
+      "tech_stack": {
+        "crm": "simulated",
+        "cloud": "gcp"
+      },
+      "enriched_days_before_evaluation": 20,
+      "source": "simulated_enrichment"
+    },
+    {
+      "account_ref": "ACC-1008",
+      "hq_country": "United States",
+      "revenue_band": "$1B+",
+      "tech_stack": {
+        "crm": "simulated",
+        "cloud": "aws",
+        "data_warehouse": "snowflake"
+      },
+      "enriched_days_before_evaluation": 20,
+      "source": "simulated_enrichment"
+    },
+    {
+      "account_ref": "ACC-1009",
+      "hq_country": "Norway",
+      "revenue_band": "$100M-$250M",
+      "tech_stack": {
+        "crm": "simulated",
+        "cloud": "aws"
+      },
+      "enriched_days_before_evaluation": 20,
+      "source": "simulated_enrichment"
+    },
+    {
+      "account_ref": "ACC-1010",
+      "hq_country": "New Zealand",
+      "revenue_band": "$10M-$50M",
+      "tech_stack": {
+        "crm": "simulated",
+        "cloud": "gcp"
+      },
+      "enriched_days_before_evaluation": 20,
+      "source": "simulated_enrichment"
+    }
+  ]
+}

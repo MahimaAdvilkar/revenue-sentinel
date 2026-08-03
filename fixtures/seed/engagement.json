@@ -1,0 +1,96 @@
+{
+  "$schema_note": "Synthetic data. Every name, company, address, and email here is invented. No real or employer data appears in this repository. Offsets are expressed in days before EVALUATION_TIMESTAMP so the scenario stays fixed relative to the injected clock rather than to the wall clock.",
+  "count": 15,
+  "engagement_events": [
+    {
+      "account_ref": "ACC-1001",
+      "channel": "email",
+      "event_type": "sent",
+      "days_before_evaluation": 14
+    },
+    {
+      "account_ref": "ACC-1001",
+      "channel": "email",
+      "event_type": "opened",
+      "days_before_evaluation": 13
+    },
+    {
+      "account_ref": "ACC-1001",
+      "channel": "email",
+      "event_type": "opened",
+      "days_before_evaluation": 9
+    },
+    {
+      "account_ref": "ACC-1001",
+      "channel": "email",
+      "event_type": "clicked",
+      "days_before_evaluation": 6
+    },
+    {
+      "account_ref": "ACC-1002",
+      "channel": "calendar",
+      "event_type": "meeting_held",
+      "days_before_evaluation": 2
+    },
+    {
+      "account_ref": "ACC-1003",
+      "channel": "email",
+      "event_type": "sent",
+      "days_before_evaluation": 18
+    },
+    {
+      "account_ref": "ACC-1003",
+      "channel": "email",
+      "event_type": "opened",
+      "days_before_evaluation": 17
+    },
+    {
+      "account_ref": "ACC-1004",
+      "channel": "calendar",
+      "event_type": "meeting_held",
+      "days_before_evaluation": 16
+    },
+    {
+      "account_ref": "ACC-1005",
+      "channel": "email",
+      "event_type": "sent",
+      "days_before_evaluation": 30
+    },
+    {
+      "account_ref": "ACC-1006",
+      "channel": "calendar",
+      "event_type": "meeting_held",
+      "days_before_evaluation": 5
+    },
+    {
+      "account_ref": "ACC-1007",
+      "channel": "email",
+      "event_type": "sent",
+      "days_before_evaluation": 22
+    },
+    {
+      "account_ref": "ACC-1008",
+      "channel": "calendar",
+      "event_type": "meeting_held",
+      "days_before_evaluation": 1
+    },
+    {
+      "account_ref": "ACC-1009",
+      "channel": "email",
+      "event_type": "sent",
+      "days_before_evaluation": 19
+    },
+    {
+      "account_ref": "ACC-1009",
+      "channel": "email",
+      "event_type": "opened",
+      "days_before_evaluation": 18
+    },
+    {
+      "account_ref": "ACC-1010",
+      "channel": "email",
+      "event_type": "sent",
+      "days_before_evaluation": 26
+    }
+  ]
+}

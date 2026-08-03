@@ -1,0 +1,46 @@
+{
+  "$schema_note": "Synthetic data. Every name, company, address, and email here is invented. No real or employer data appears in this repository. Offsets are expressed in days before EVALUATION_TIMESTAMP so the scenario stays fixed relative to the injected clock rather than to the wall clock.",
+  "count": 5,
+  "support_issues": [
+    {
+      "account_ref": "ACC-1001",
+      "external_ref": "SUP-4411",
+      "severity": "p3",
+      "status": "open",
+      "days_before_evaluation": 10,
+      "summary": "API rate limits reached during bulk route imports; requesting a higher ceiling for the fleet sync integration."
+    },
+    {
+      "account_ref": "ACC-1002",
+      "external_ref": "SUP-4402",
+      "severity": "p2",
+      "status": "resolved",
+      "days_before_evaluation": 24,
+      "summary": "SSO metadata refresh failed once."
+    },
+    {
+      "account_ref": "ACC-1004",
+      "external_ref": "SUP-4418",
+      "severity": "p4",
+      "status": "open",
+      "days_before_evaluation": 8,
+      "summary": "Requesting an additional sandbox environment."
+    },
+    {
+      "account_ref": "ACC-1008",
+      "external_ref": "SUP-4421",
+      "severity": "p3",
+      "status": "closed",
+      "days_before_evaluation": 33,
+      "summary": "Report export formatting question."
+    },
+    {
+      "account_ref": "ACC-1009",
+      "external_ref": "SUP-4425",
+      "severity": "p2",
+      "status": "open",
+      "days_before_evaluation": 12,
+      "summary": "Intermittent latency on the telemetry endpoint."
+    }
+  ]
+}

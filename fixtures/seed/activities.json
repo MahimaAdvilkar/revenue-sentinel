@@ -1,0 +1,159 @@
+{
+  "$schema_note": "Synthetic data. Every name, company, address, and email here is invented. No real or employer data appears in this repository. Offsets are expressed in days before EVALUATION_TIMESTAMP so the scenario stays fixed relative to the injected clock rather than to the wall clock.",
+  "count": 17,
+  "activities": [
+    {
+      "account_ref": "ACC-1001",
+      "opportunity_ref": "OPP-2001",
+      "activity_type": "email",
+      "direction": "outbound",
+      "days_before_evaluation": 14,
+      "subject": "Following up on the Platform Expansion proposal",
+      "body": "Sending over the revised proposal for the platform expansion. Happy to walk the team through the rollout plan whenever suits."
+    },
+    {
+      "account_ref": "ACC-1001",
+      "opportunity_ref": "OPP-2001",
+      "activity_type": "meeting",
+      "direction": "outbound",
+      "days_before_evaluation": 21,
+      "subject": "Proposal review call",
+      "body": "Presented the platform expansion proposal to the operations and IT leads."
+    },
+    {
+      "account_ref": "ACC-1001",
+      "opportunity_ref": "OPP-2001",
+      "activity_type": "call",
+      "direction": "outbound",
+      "days_before_evaluation": 28,
+      "subject": "Discovery follow-up",
+      "body": "Discussed integration requirements and current fleet routing workflow."
+    },
+    {
+      "account_ref": "ACC-1001",
+      "opportunity_ref": "OPP-2001",
+      "activity_type": "email",
+      "direction": "inbound",
+      "days_before_evaluation": 33,
+      "subject": "Re: Intro to the platform team",
+      "body": "Thanks for the introduction, looping in our operations lead."
+    },
+    {
+      "account_ref": "ACC-1001",
+      "opportunity_ref": "OPP-2001",
+      "activity_type": "note",
+      "direction": "internal",
+      "days_before_evaluation": 3,
+      "subject": "Internal: account review",
+      "body": "Flagged for pipeline review. No customer contact since the proposal went out."
+    },
+    {
+      "account_ref": "ACC-1002",
+      "opportunity_ref": "OPP-2002",
+      "activity_type": "call",
+      "direction": "outbound",
+      "days_before_evaluation": 2,
+      "subject": "Contract terms",
+      "body": "Reviewed redlines."
+    },
+    {
+      "account_ref": "ACC-1003",
+      "opportunity_ref": "OPP-2003",
+      "activity_type": "email",
+      "direction": "outbound",
+      "days_before_evaluation": 18,
+      "subject": "Telemetry pilot",
+      "body": "Scoping the pilot."
+    },
+    {
+      "account_ref": "ACC-1004",
+      "opportunity_ref": "OPP-2004",
+      "activity_type": "meeting",
+      "direction": "outbound",
+      "days_before_evaluation": 16,
+      "subject": "Compliance workshop",
+      "body": "Ran the workshop."
+    },
+    {
+      "account_ref": "ACC-1005",
+      "opportunity_ref": "OPP-2005",
+      "activity_type": "email",
+      "direction": "outbound",
+      "days_before_evaluation": 30,
+      "subject": "Handover",
+      "body": "Kickoff scheduled."
+    },
+    {
+      "account_ref": "ACC-1006",
+      "opportunity_ref": "OPP-2006",
+      "activity_type": "call",
+      "direction": "outbound",
+      "days_before_evaluation": 5,
+      "subject": "Maintenance pilot",
+      "body": "Agreed pilot scope."
+    },
+    {
+      "account_ref": "ACC-1007",
+      "opportunity_ref": "OPP-2007",
+      "activity_type": "email",
+      "direction": "outbound",
+      "days_before_evaluation": 22,
+      "subject": "Starter package",
+      "body": "Sent pricing."
+    },
+    {
+      "account_ref": "ACC-1008",
+      "opportunity_ref": "OPP-2008",
+      "activity_type": "meeting",
+      "direction": "outbound",
+      "days_before_evaluation": 1,
+      "subject": "Security review",
+      "body": "Completed review."
+    },
+    {
+      "account_ref": "ACC-1009",
+      "opportunity_ref": "OPP-2009",
+      "activity_type": "email",
+      "direction": "outbound",
+      "days_before_evaluation": 19,
+      "subject": "Grid pilot",
+      "body": "Awaiting technical sign-off."
+    },
+    {
+      "account_ref": "ACC-1010",
+      "opportunity_ref": "OPP-2010",
+      "activity_type": "email",
+      "direction": "outbound",
+      "days_before_evaluation": 26,
+      "subject": "Campus licence",
+      "body": "Sent the overview deck."
+    },
+    {
+      "account_ref": "ACC-1004",
+      "opportunity_ref": "OPP-2012",
+      "activity_type": "call",
+      "direction": "outbound",
+      "days_before_evaluation": 6,
+      "subject": "Regional expansion",
+      "body": "Discussed timelines."
+    },
+    {
+      "account_ref": "ACC-1006",
+      "opportunity_ref": "OPP-2013",
+      "activity_type": "email",
+      "direction": "outbound",
+      "days_before_evaluation": 20,
+      "subject": "Quality analytics",
+      "body": "Shared the datasheet."
+    },
+    {
+      "account_ref": "ACC-1008",
+      "opportunity_ref": "OPP-2014",
+      "activity_type": "call",
+      "direction": "outbound",
+      "days_before_evaluation": 4,
+      "subject": "Treasury connector",
+      "body": "Reviewed the API scope."
+    }
+  ]
+}
