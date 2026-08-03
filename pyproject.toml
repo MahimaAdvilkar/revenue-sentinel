@@ -109,9 +109,16 @@ plugins = ["pydantic.mypy"]
 
 # domain/ and analytics/ are held to the strictest bar — they are pure, typed,
 # and carry the money math. See ADR-0003.
-[[tool.mypy.overrides]]
-module = ["revenue_sentinel.domain.*", "revenue_sentinel.analytics.*"]
-disallow_any_explicit = true
+#
+# `disallow_any_explicit` was declared here in Phase 1 but cannot be satisfied: the
+# pydantic mypy plugin synthesises an `Any`-typed `__init__` for every BaseModel
+# subclass, so the flag fires on the `class` line of every model regardless of what
+# we write. It measured the plugin, not our code.
+#
+# The intent — zero `Any` in domain/ and analytics/ — is enforced instead by
+# tests/unit/test_no_any_in_pure_layers.py, which walks the AST of both packages.
+# That check is strictly stronger: it also catches `Any` inside string annotations
+# and `cast(Any, ...)`, which the mypy flag does not. See ADR-0010.
 
 [[tool.mypy.overrides]]
 module = ["langgraph.*", "mcp.*"]
