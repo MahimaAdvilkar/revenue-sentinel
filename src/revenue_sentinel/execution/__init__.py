@@ -1,1 +1,4 @@
-"""Executors, idempotency keys, bounded retries, outbox dispatch. Acts only on a PolicyDecision (boundary R4)."""
+"""Executors, idempotency keys, bounded retries, outbox dispatch.
+
+Acts only on a PolicyDecision, and only through `mcp` (boundary R4).
+"""
