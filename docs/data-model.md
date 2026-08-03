@@ -1,10 +1,20 @@
 # Data Model
 
 **Status:** AUTHORITATIVE
-**Last updated:** 2026-08-01 (Phase 1)
+**Last updated:** 2026-08-02 (Session 1)
 
-PostgreSQL 16, SQLAlchemy 2.x ORM, Alembic migrations. All tables are created by a single
-baseline migration on Day 1. Nothing in this document is implemented yet — see
+PostgreSQL 16, **synchronous** SQLAlchemy 2.x ORM (ADR-0009), Alembic migrations.
+
+**Implementation status: the schema is real.** All 29 tables and 26 native enum types are
+created by the single baseline migration
+[`0001_baseline`](../alembic/versions/0001_baseline.py), verified by
+[`tests/integration/test_migrations.py`](../tests/integration/test_migrations.py), which also
+asserts that `downgrade base` returns the database to genuinely empty — including dropping
+the enum types Alembic's autogenerate leaves behind.
+
+Seven of the 29 tables (the GTM source mirror) hold seeded data and have repositories. The
+other 22 exist as schema only, with no accessor and no rows, until the sessions that use
+them. See [`../PROJECT_STATUS.md`](../PROJECT_STATUS.md) and
 [`../CAPABILITY_MATRIX.md`](../CAPABILITY_MATRIX.md).
 
 ---
@@ -17,7 +27,7 @@ baseline migration on Day 1. Nothing in this document is implemented yet — see
 | Business identifiers | Separate human-readable column (`ACC-1001`, `INC-001`) — used in the UI and demo |
 | Timestamps | `timestamptz`, UTC, `created_at` / `updated_at` on every mutable table |
 | Money | `NUMERIC(14, 2)` plus an ISO-4217 `currency` column. **Never floats.** |
-| Enums | Postgres native enums, mirrored by `StrEnum` in `domain/` |
+| Enums | Postgres native enums (26 of them), mirrored by `StrEnum` in `domain/`. Values are snake_case identifiers (`mid_market`), not display text — a label change must not require a migration. **One deliberate exception:** `policy_evaluations.risk_tier` is `SMALLINT` with a `CHECK (0..3)`, because tier escalation is an ordering operation (`max(a, b)`) and Postgres enums do not order the way the policy engine needs. |
 | Soft delete | Not used in v1 — audit tables are append-only instead |
 | JSON | `JSONB`, only for payloads that are genuinely schemaless (raw event bodies, tool args) |
 
@@ -134,7 +144,11 @@ the dashboard can be recomputed and verified by hand.
 |---|---|
 | `policy_evaluations` | `intervention_id`, `policy_version`, `risk_tier`, `decision` (`ALLOW`/`REQUIRE_APPROVAL`/`DENY`), `matched_rules` JSONB, `reason`, `evaluated_at` |
 | `approval_requests` | `policy_evaluation_id`, `run_id`, `status` (`PENDING`/`APPROVED`/`REJECTED`/`EXPIRED`), `requested_at`, `expires_at`, `decided_at`, `decided_by`, `decision_note` |
-| `action_records` | `run_id`, `intervention_id`, `action_type`, `idempotency_key` **UNIQUE**, `status`, `authorized_by` (policy eval or approval id), `attempt_count`, `result` JSONB, `executed_at` |
+| `action_records` | `run_id`, `intervention_id`, `action_type`, `target_ref`, `idempotency_key` **UNIQUE**, `status`, `authorized_by` (policy eval or approval id), `attempt_count`, `result` JSONB, `executed_at` |
+
+`action_records.target_ref` stores the fourth input to the idempotency key
+(`sha256(run_id | intervention_ref | action_type | target_ref)`). A key nobody can recompute
+is a key nobody can audit, so the input is kept alongside the digest.
 
 `action_records.idempotency_key` is a UNIQUE constraint, not application logic. Duplicate
 execution is prevented by the database, which is the only place it can be prevented reliably.
@@ -154,7 +168,12 @@ execution is prevented by the database, which is the only place it can be preven
 | Table | Notable columns |
 |---|---|
 | `evaluation_runs` | `suite_name`, `suite_version`, `started_at`, `ended_at`, `passed`, `total` |
-| `evaluation_results` | `evaluation_run_id`, `workflow_run_id`, `check_name`, `outcome` (`PASS`/`FAIL`/`SKIP`), `expected`, `actual`, `detail` |
+| `evaluation_results` | `evaluation_run_id`, `workflow_run_id`, `check_name`, `outcome` (`passed`/`failed`/`skipped`), `expected`, `actual`, `detail` |
+
+Outcome values are past participles rather than `pass`/`fail`/`skip` so the Python member
+name `PASS = "..."` does not trip `bandit`'s hardcoded-password heuristic. The alternative
+was a blanket `S105` suppression on the enum module, which would have silenced a real
+finding there later.
 
 ---
 

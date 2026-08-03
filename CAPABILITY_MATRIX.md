@@ -1,6 +1,6 @@
 # Capability Matrix
 
-**Last updated:** 2026-08-01 — end of Phase 1
+**Last updated:** 2026-08-02 — end of Session 1
 **Rule:** every capability in this repository carries exactly one of four statuses, and the
 status shown here matches what the code and the dashboard say (rules 5 and 19).
 
@@ -11,9 +11,18 @@ status shown here matches what the code and the dashboard say (rules 5 and 19).
 | **SCAFFOLDED** | Structure, interface, or contract exists; behaviour does not. |
 | **ROADMAP** | Designed and documented; not built. |
 
-> **As of Phase 1 there are zero IMPLEMENTED capabilities.** Nothing is runnable. This is
-> the expected state at the end of a documentation-and-scaffolding phase, and saying so is
-> the point of this file.
+> **As of Session 1 there are 11 IMPLEMENTED capabilities**, all of them foundational:
+> configuration, logging, the clock, identifiers, domain models, the schema, migrations,
+> repositories, deterministic seeding, the pipeline-impact calculator, `GET /health`, and
+> boundary enforcement.
+>
+> **There are still zero SIMULATED capabilities**, because no adapter exists yet — the
+> seeded GTM data is loaded directly into the mirror tables by
+> [`db/seeding.py`](src/revenue_sentinel/db/seeding.py), not fetched through an adapter. Every
+> seeded row carries `is_simulated = true` regardless.
+>
+> **No agent, no LLM call, no MCP tool, and no dashboard exists.** Nothing in this system
+> has yet spoken to a model or to an external system of any kind.
 
 ---
 
@@ -48,7 +57,7 @@ All SCAFFOLDED as of Phase 1; all become SIMULATED on Session 4.
 
 | Capability | Status | Session |
 |---|---|---|
-| Canonical event envelope | SCAFFOLDED | 2 |
+| Canonical event envelope (domain model) | **IMPLEMENTED** | 1 — model and `trust_level` guarantee; ingestion in 2 |
 | Event ingestion (replay-safe) | SCAFFOLDED | 2 |
 | Event normalization | SCAFFOLDED | 2 |
 | Detector framework | SCAFFOLDED | 2 |
@@ -78,7 +87,7 @@ All SCAFFOLDED as of Phase 1; all become SIMULATED on Session 4.
 | Investigation Planner | **LLM** | SCAFFOLDED | 3 |
 | Research Agent | **LLM** (tool choice) | SCAFFOLDED | 3 |
 | Revenue Analyst — hypotheses | **LLM** | SCAFFOLDED | 3 |
-| Revenue Analyst — impact | Deterministic | SCAFFOLDED | 1 (calculator), 3 (wired) |
+| Revenue Analyst — impact | Deterministic | **Calculator IMPLEMENTED**, agent SCAFFOLDED | 1 (calculator), 3 (wired into the graph) |
 | Strategy Agent — draft | **LLM** | SCAFFOLDED | 5 |
 | Strategy Agent — ranking | Deterministic | SCAFFOLDED | 5 |
 | Policy & Risk Agent | Deterministic | SCAFFOLDED | 5 |
@@ -117,8 +126,9 @@ All SCAFFOLDED as of Phase 1; all become SIMULATED on Session 4.
 | Structured outputs (schema-validated) | SCAFFOLDED | 3 |
 | Fixture LLM client (offline) | SCAFFOLDED | 3 |
 | Prompt caching | SCAFFOLDED | 7 |
-| **Deterministic pipeline-impact calculator** | SCAFFOLDED | 1 |
+| **Deterministic pipeline-impact calculator** | **IMPLEMENTED** | 1 — [`analytics/pipeline_impact.py`](src/revenue_sentinel/analytics/pipeline_impact.py); 60 tests, exact to the cent |
 | **Deterministic intervention scoring** | SCAFFOLDED | 5 |
+| Banded risk factors (ADR-0008) | **IMPLEMENTED** | 1 — [`analytics/risk_bands.py`](src/revenue_sentinel/analytics/risk_bands.py); every band boundary tested |
 | Memory (Postgres tables) | SCAFFOLDED | 3 |
 | Vector / semantic retrieval | ROADMAP | — |
 
@@ -145,7 +155,7 @@ All SCAFFOLDED as of Phase 1; all become SIMULATED on Session 4.
 
 | Capability | Status | Session |
 |---|---|---|
-| `GET /health` | SCAFFOLDED | 1 |
+| `GET /health` | **IMPLEMENTED** | 1 — reports DB reachability; 503 when unreachable |
 | Incident APIs | SCAFFOLDED | 2 |
 | Approval APIs | SCAFFOLDED | 6 |
 | Timeline API | SCAFFOLDED | 7 |
@@ -170,7 +180,9 @@ All SCAFFOLDED as of Phase 1; all become SIMULATED on Session 4.
 | Prompt-injection corpus (6 cases) | SCAFFOLDED | 8 |
 | Policy-bypass tests | SCAFFOLDED | 8 |
 | Secret scanning | SCAFFOLDED | 8 |
-| `import-linter` boundary enforcement | SCAFFOLDED | 1 |
+| `import-linter` boundary enforcement | **IMPLEMENTED** | 1 — 6 contracts kept; asserted by the test suite as well as CI. Partly vacuous while the forbidden packages are empty; gains teeth in Sessions 2–6 |
+| "Zero `Any`" AST check (ADR-0010) | **IMPLEMENTED** | 1 — scans `domain/` and `analytics/` |
+| Wall-clock access check | **IMPLEMENTED** | 1 — proves only `SystemClock` reads the clock |
 | Detector precision/recall at scale | ROADMAP | Meaningless on one fixture — see [`docs/evaluation-strategy.md`](docs/evaluation-strategy.md) §7 |
 | Intervention effectiveness measurement | ROADMAP | Requires a real feedback loop |
 
@@ -180,9 +192,10 @@ All SCAFFOLDED as of Phase 1; all become SIMULATED on Session 4.
 
 | Capability | Status |
 |---|---|
-| Docker Compose (PostgreSQL 16, port 55432) | SCAFFOLDED |
-| Alembic migrations | SCAFFOLDED (Session 1) |
-| GitHub Actions CI | SCAFFOLDED (Session 1, complete Session 10) |
+| Docker Compose (PostgreSQL 16, port 55432) | **IMPLEMENTED** — container healthy, no conflict with the local 5432 |
+| Alembic migrations | **IMPLEMENTED** — one baseline, 29 tables, 26 enum types, downgrade returns to empty |
+| Deterministic seeding | **IMPLEMENTED** — 92 rows, byte-identical per seed, idempotent |
+| GitHub Actions CI | **IMPLEMENTED** (full matrix Session 10) — every local gate runs on push and PR |
 | Offline fixture demo mode | SCAFFOLDED (Session 3) |
 | Cloud deployment | ROADMAP — requires approval (rule 20) |
 | Message broker | ROADMAP — see ADR-0006 |

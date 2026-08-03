@@ -34,10 +34,15 @@ dependencies installed.**
 
 ---
 
-## Session 1 — Foundations
+## Session 1 — Foundations ✅ COMPLETE
 
 **Objective.** A running database, typed domain models, deterministic synthetic data, and
 a test suite — with no agents, no LLM, and no API surface beyond health.
+
+**Outcome.** All eleven acceptance criteria met; 228 tests pass (target was ≥25); three
+ADRs added (0008 banded risk factors, 0009 synchronous persistence, 0010 no-`Any`
+enforcement). Three documented deviations and two fixed defects are recorded in
+[`PROJECT_STATUS.md`](PROJECT_STATUS.md).
 
 **Files / modules**
 - `src/revenue_sentinel/core/` — config (Pydantic Settings), structured logging, ID and clock utilities, error types

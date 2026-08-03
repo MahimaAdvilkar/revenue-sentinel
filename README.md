@@ -10,9 +10,15 @@ cost, and evaluates its own behaviour.
 
 ## ⚠️ Current status — read this first
 
-> **Nothing runs yet.** This repository is at the end of its documentation and scaffolding
-> phase. There is no application code, no database, and no working demo. See
-> [`PROJECT_STATUS.md`](PROJECT_STATUS.md) for exactly what exists.
+> **Session 1 of 11 is complete: the foundations run, the workflow does not.**
+>
+> What works today: PostgreSQL with all 29 tables, a reversible baseline migration,
+> deterministic synthetic data, typed domain models, the pipeline-impact calculator, and
+> `GET /health` — verified by 228 passing tests.
+>
+> What does not exist yet: **any agent, any LLM call, the MCP server, the policy engine,
+> execution, and the dashboard.** This system has never called a model. `make demo` does not
+> work. See [`PROJECT_STATUS.md`](PROJECT_STATUS.md) for the precise state.
 >
 > **All integrations are SIMULATED by design.** No real HubSpot, Salesforce, Gmail, Slack,
 > customer, or employer data is connected — now or during the initial build. Every
@@ -128,27 +134,43 @@ Mypy · GitHub Actions · structured logging · OpenTelemetry-compatible tracing
 
 ## Running it
 
-**Not yet possible.** These targets are declared in the `Makefile` and become real in
-Session 1.
+Verified from a clean database against the current commit:
 
 ```bash
-make setup      # install dependencies (uv)
-make up         # start PostgreSQL on host port 55432
-make migrate    # apply the baseline migration
-make seed       # load deterministic synthetic data
-make test       # run the full suite
-make demo       # run the golden scenario — offline, no API key required
+cp .env.example .env    # then set POSTGRES_PASSWORD and match it in DATABASE_URL
+make setup              # install dependencies (uv, Python 3.12.3)
+make up                 # start PostgreSQL on host port 55432
+make migrate            # 29 tables, 26 native enum types
+make seed               # 92 deterministic rows, all is_simulated = true
+make check              # lint, format, mypy --strict, boundaries, 228 tests
+make api                # then: curl localhost:8000/health
 ```
 
-**Prerequisites:** Python 3.12+, Docker with Compose, Node 22+ with pnpm (Session 9).
+Confirm the golden scenario landed:
+
+```bash
+docker compose exec postgres psql -U sentinel -d revenue_sentinel \
+  -c "SELECT opportunity_ref, amount, stage, probability FROM opportunities
+      WHERE opportunity_ref = 'OPP-2001';"
+```
+
+**Not yet functional** — these `Makefile` targets are declared and become real later:
+`make ingest` (Session 2), `make mcp` (4), `make demo` (6), `make eval` (8), `make web` (9).
+
+**Prerequisites:** [`uv`](https://docs.astral.sh/uv/), Docker with Compose, and Node 22+
+with pnpm (Session 9 only). `uv` installs Python 3.12.3 itself, so a system Python of the
+right version is not required.
+
 PostgreSQL binds host port **55432** deliberately, to avoid colliding with a local
-PostgreSQL on 5432.
+PostgreSQL on 5432. Do not "fix" this to 5432 — it would silently connect the application
+to the wrong database.
 
 ---
 
 ## What this is not
 
 - Not connected to any real system, and not claimed to be
+- Not yet an agentic system at all — Session 1 built the foundations underneath one
 - Not multi-tenant, and has no authentication
 - Not able to send email — only to draft it, behind human approval
 - Not deployed anywhere

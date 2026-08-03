@@ -17,6 +17,9 @@ too — an ADR is where tribal knowledge goes to become reviewable.
 | [0005](0005-policy-and-approval-model.md) | Deterministic policy tiers with human approval | Accepted | 2026-08-01 |
 | [0006](0006-postgres-as-event-substrate.md) | PostgreSQL as the event substrate; no broker in v1 | Accepted | 2026-08-01 |
 | [0007](0007-offline-fixture-demo-mode.md) | Offline fixture demo mode is the default | Accepted | 2026-08-01 |
+| [0008](0008-banded-risk-factors.md) | Stall risk and usage offset are banded lookup tables | Accepted | 2026-08-02 |
+| [0009](0009-synchronous-persistence.md) | Synchronous SQLAlchemy for persistence | Accepted | 2026-08-02 |
+| [0010](0010-enforcing-no-any-by-ast-check.md) | "Zero `Any`" is enforced by an AST check | Accepted | 2026-08-02 |
 
 ---
 
