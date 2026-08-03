@@ -5,8 +5,6 @@
 #
 # Rule 13: no gate here is ever bypassed. No `continue-on-error`, no skipped
 # tests, no loosened assertions to get green.
-#
-# The `test` job is a no-op placeholder until Session 1 creates the test suite.
 
 name: CI
 
@@ -40,37 +38,21 @@ jobs:
           enable-cache: true
 
       - name: Set up Python
-        run: uv python install 3.12
-
-      - name: Guard — no application code yet (Phase 1 only)
-        id: guard
-        run: |
-          if [ -d src/revenue_sentinel ] && \
-             [ -n "$(find src/revenue_sentinel -name '*.py' ! -name '__init__.py' -print -quit)" ]; then
-            echo "has_code=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "has_code=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::No application code yet — quality gates activate in Session 1."
-          fi
+        run: uv python install 3.12.3
 
       - name: Install dependencies
-        if: steps.guard.outputs.has_code == 'true'
         run: uv sync --all-extras
 
       - name: Ruff lint
-        if: steps.guard.outputs.has_code == 'true'
         run: uv run ruff check --output-format=github .
 
       - name: Ruff format check
-        if: steps.guard.outputs.has_code == 'true'
         run: uv run ruff format --check .
 
       - name: Mypy (strict)
-        if: steps.guard.outputs.has_code == 'true'
         run: uv run mypy src
 
       - name: Layer boundaries (import-linter)
-        if: steps.guard.outputs.has_code == 'true'
         run: uv run lint-imports
 
   test:
@@ -107,32 +89,38 @@ jobs:
           enable-cache: true
 
       - name: Set up Python
-        run: uv python install 3.12
-
-      - name: Guard — no test suite yet (Phase 1 only)
-        id: guard
-        run: |
-          if [ -n "$(find tests -name 'test_*.py' -print -quit 2>/dev/null)" ]; then
-            echo "has_tests=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "has_tests=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::No test suite yet — activates in Session 1."
-          fi
+        run: uv python install 3.12.3
 
       - name: Install dependencies
-        if: steps.guard.outputs.has_tests == 'true'
         run: uv sync --all-extras
 
       - name: Migrate
-        if: steps.guard.outputs.has_tests == 'true'
         run: uv run alembic upgrade head
 
+      - name: Seed
+        run: uv run python -m scripts.seed
+
+      # The integration suite creates and drops its own `revenue_sentinel_test`
+      # database, so it does not disturb the seeded one above.
       - name: Unit and integration tests
-        if: steps.guard.outputs.has_tests == 'true'
         run: uv run pytest tests/unit tests/integration -ra
 
+      # Guarded because `tests/evaluation/` holds no tests until Session 8, and
+      # pytest exits 5 ("no tests collected") on an empty directory — which would
+      # fail this job for the wrong reason. The guard is removed in Session 8; it
+      # is not a way of tolerating a failing suite.
+      - name: Check for an evaluation suite
+        id: evaluation
+        run: |
+          if [ -n "$(find tests/evaluation -name 'test_*.py' -print -quit 2>/dev/null)" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No evaluation suite yet — activates in Session 8."
+          fi
+
       - name: Workflow evaluation suite
-        if: steps.guard.outputs.has_tests == 'true'
+        if: steps.evaluation.outputs.present == 'true'
         run: uv run pytest tests/evaluation -ra
 
   secrets:
