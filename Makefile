@@ -127,7 +127,7 @@ mcp:  ## [S4] Run the GTM MCP server over stdio
 # Demo — offline by default (ADR-0007)
 # ---------------------------------------------------------------------------
 .PHONY: ingest
-ingest:  ## [S2] Ingest synthetic events and run detectors
+ingest:  ## Ingest SIMULATED source events, detect signals, open incidents
 	$(UV) run python -m scripts.ingest
 
 .PHONY: demo

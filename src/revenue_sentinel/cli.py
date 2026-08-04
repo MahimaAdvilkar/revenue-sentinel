@@ -12,6 +12,7 @@ from revenue_sentinel.core.config import get_settings
 from revenue_sentinel.core.logging import configure_logging
 from revenue_sentinel.db.seeding import seed_database
 from revenue_sentinel.db.session import build_engine, build_session_factory, session_scope
+from revenue_sentinel.events.pipeline import run_ingestion_cycle
 
 app = typer.Typer(
     name="revenue-sentinel",
@@ -54,6 +55,36 @@ def seed() -> None:
     typer.echo(f"  engagement_events  {summary.engagement_events:>4}")
     typer.echo(f"  support_issues     {summary.support_issues:>4}")
     typer.echo(f"  company_profiles   {summary.company_profiles:>4}")
+
+
+@app.command()
+def ingest() -> None:
+    """Run one ingestion cycle: sources -> events -> signals -> incidents.
+
+    The source feed is SIMULATED -- it replays the seeded GTM mirror, not an
+    external system. Replay-safe: running it twice creates no duplicate rows.
+    """
+    settings = get_settings()
+    configure_logging(level=settings.log_level, log_format=settings.log_format)
+
+    engine = build_engine(settings)
+    factory = build_session_factory(engine)
+    with session_scope(factory) as session:
+        summary = run_ingestion_cycle(
+            session, evaluated_at=settings.evaluation_timestamp, settings=settings
+        )
+
+    typer.echo(f"Ingestion cycle complete (source feed: {summary.ingestion_status})")
+    typer.echo(f"  evaluated at         {summary.evaluated_at.isoformat()}")
+    typer.echo(f"  raw events offered   {summary.raw_offered:>4}")
+    typer.echo(f"  raw events inserted  {summary.raw_inserted:>4}")
+    typer.echo(f"  events normalized    {summary.normalized:>4}")
+    typer.echo(f"  opportunities seen   {summary.contexts_evaluated:>4}")
+    typer.echo(f"  signals created      {summary.signals_created:>4}")
+    typer.echo(f"  signals deduplicated {summary.signals_deduplicated:>4}")
+    typer.echo(f"  incidents opened     {summary.incidents_opened:>4}")
+    if summary.incident_refs:
+        typer.echo(f"  incidents            {', '.join(summary.incident_refs)}")
 
 
 if __name__ == "__main__":  # pragma: no cover -- exercised via the console script
