@@ -83,9 +83,14 @@ workflow proves what it needs.
 
 ---
 
-## Session 2 — Events, signals, incidents
+## Session 2 — Events, signals, incidents ✅ COMPLETE
 
 **Objective.** Turn raw events into a detected stalled opportunity and an open incident.
+
+**Outcome.** All seven acceptance criteria met plus four added during planning; 432 tests
+pass (204 new). ADR-0011 added for severity bands. `events/outbox.py` dropped by decision —
+no consumer, no storage until Session 6. Deviations recorded in
+[`PROJECT_STATUS.md`](PROJECT_STATUS.md).
 
 **Files / modules** — `events/` (envelope, ingest, normalize, dispatcher, outbox),
 `signals/` (detector protocol, registry, `stalled_opportunity`), `incidents/` (lifecycle

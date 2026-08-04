@@ -1,6 +1,6 @@
 # Capability Matrix
 
-**Last updated:** 2026-08-02 — end of Session 1
+**Last updated:** 2026-08-03 — end of Session 2
 **Rule:** every capability in this repository carries exactly one of four statuses, and the
 status shown here matches what the code and the dashboard say (rules 5 and 19).
 
@@ -11,18 +11,22 @@ status shown here matches what the code and the dashboard say (rules 5 and 19).
 | **SCAFFOLDED** | Structure, interface, or contract exists; behaviour does not. |
 | **ROADMAP** | Designed and documented; not built. |
 
-> **As of Session 1 there are 11 IMPLEMENTED capabilities**, all of them foundational:
-> configuration, logging, the clock, identifiers, domain models, the schema, migrations,
-> repositories, deterministic seeding, the pipeline-impact calculator, `GET /health`, and
-> boundary enforcement.
+> **As of Session 2 the detection pipeline runs end to end.** Ingestion, normalization,
+> the detector registry, the `stalled_opportunity` detector, incident creation, the
+> lifecycle state machine, and four HTTP endpoints are IMPLEMENTED — on top of the
+> Session 1 foundations.
 >
-> **There are still zero SIMULATED capabilities**, because no adapter exists yet — the
-> seeded GTM data is loaded directly into the mirror tables by
-> [`db/seeding.py`](src/revenue_sentinel/db/seeding.py), not fetched through an adapter. Every
-> seeded row carries `is_simulated = true` regardless.
+> **The event source is SIMULATED.** [`events/sources.py`](src/revenue_sentinel/events/sources.py)
+> replays the locally seeded GTM mirror as though an adapter had delivered it. It carries
+> `INGESTION_STATUS = "SIMULATED"`, stamped on every ingestion response. No external system
+> is connected. Real ports and adapters arrive in Session 4.
 >
-> **No agent, no LLM call, no MCP tool, and no dashboard exists.** Nothing in this system
-> has yet spoken to a model or to an external system of any kind.
+> **Eight detectors are registered; exactly one is implemented.** The other seven raise
+> `NotImplementedError` and are ROADMAP. A test asserts the count, so "eight detectors"
+> cannot be claimed anywhere, including by accident.
+>
+> **No agent node, no LLM call, no MCP tool, no policy engine, and no dashboard exists.**
+> This system has still never called a model.
 
 ---
 
@@ -57,25 +61,36 @@ All SCAFFOLDED as of Phase 1; all become SIMULATED on Session 4.
 
 | Capability | Status | Session |
 |---|---|---|
-| Canonical event envelope (domain model) | **IMPLEMENTED** | 1 — model and `trust_level` guarantee; ingestion in 2 |
-| Event ingestion (replay-safe) | SCAFFOLDED | 2 |
-| Event normalization | SCAFFOLDED | 2 |
-| Detector framework | SCAFFOLDED | 2 |
-| **`stalled_opportunity` detector** | SCAFFOLDED | 2 — the only detector implemented in v1 |
-| Incident lifecycle state machine | SCAFFOLDED | 2 |
-| Signal deduplication | SCAFFOLDED | 2 |
+| Canonical event envelope | **IMPLEMENTED** | 1–2 — model, normalizers, `trust_level` guarantee |
+| Event source feed | **SIMULATED** | 2 — replays the seeded mirror; `INGESTION_STATUS = "SIMULATED"` |
+| Event ingestion (replay-safe) | **IMPLEMENTED** | 2 — `UNIQUE (source_system, source_event_id)` |
+| Event normalization | **IMPLEMENTED** | 2 — per-type normalizers; unknown types rejected |
+| Detector framework and registry | **IMPLEMENTED** | 2 — pure detectors, injected evaluation time |
+| **`stalled_opportunity` detector** | **IMPLEMENTED** | 2 — the only detector implemented in v1 |
+| Incident creation and reference allocation | **IMPLEMENTED** | 2 — sequence-backed `INC-001` |
+| Incident lifecycle state machine | **IMPLEMENTED** | 2 — illegal transitions rejected |
+| Incident severity bands (ADR-0011) | **IMPLEMENTED** | 2 — banded weighted pipeline value |
+| Signal deduplication | **IMPLEMENTED** | 2 — `UNIQUE (dedupe_key)` |
+| Incident deduplication | **IMPLEMENTED** | 2 — `UNIQUE (signal_id)` |
+| Lifecycle audit trail | **IMPLEMENTED** | 2 — every transition writes an `audit_events` row |
 
 ### Additional scenarios — contracts only
 
 | Scenario | Status |
 |---|---|
-| Renewal risk | ROADMAP — registry contract, no implementation |
-| Deal slippage | ROADMAP — registry contract, no implementation |
-| Product-qualified account discovery | ROADMAP — registry contract, no implementation |
-| Account expansion | ROADMAP — registry contract, no implementation |
-| CRM data-quality incidents | ROADMAP — registry contract, no implementation |
-| Enrichment-cost anomalies | ROADMAP — registry contract, no implementation |
-| Campaign pipeline underperformance | ROADMAP — registry contract, no implementation |
+All seven are **registered contracts** as of Session 2: they declare a signal type,
+version, window, and parameters, and their `evaluate()` raises `NotImplementedError`.
+They are counted by the registry and excluded from execution by `implemented_detectors()`.
+
+| Scenario | Status |
+|---|---|
+| Renewal risk | ROADMAP — contract registered, `evaluate()` raises |
+| Deal slippage | ROADMAP — contract registered, `evaluate()` raises |
+| Product-qualified account discovery | ROADMAP — contract registered, `evaluate()` raises |
+| Account expansion | ROADMAP — contract registered, `evaluate()` raises |
+| CRM data-quality incidents | ROADMAP — contract registered, `evaluate()` raises |
+| Enrichment-cost anomalies | ROADMAP — contract registered, `evaluate()` raises |
+| Campaign pipeline underperformance | ROADMAP — contract registered, `evaluate()` raises |
 
 ---
 
@@ -83,7 +98,7 @@ All SCAFFOLDED as of Phase 1; all become SIMULATED on Session 4.
 
 | Agent | Implementation | Status | Session |
 |---|---|---|---|
-| Signal Agent | Deterministic | SCAFFOLDED | 2 |
+| Signal Agent | Deterministic | **IMPLEMENTED** | 2 — runs upstream of the graph |
 | Investigation Planner | **LLM** | SCAFFOLDED | 3 |
 | Research Agent | **LLM** (tool choice) | SCAFFOLDED | 3 |
 | Revenue Analyst — hypotheses | **LLM** | SCAFFOLDED | 3 |
@@ -156,7 +171,9 @@ All SCAFFOLDED as of Phase 1; all become SIMULATED on Session 4.
 | Capability | Status | Session |
 |---|---|---|
 | `GET /health` | **IMPLEMENTED** | 1 — reports DB reachability; 503 when unreachable |
-| Incident APIs | SCAFFOLDED | 2 |
+| `POST /ingest` | **IMPLEMENTED** | 2 — one cycle over the SIMULATED feed |
+| `GET /incidents` | **IMPLEMENTED** | 2 — queue with status and severity filters |
+| `GET /incidents/{incident_ref}` | **IMPLEMENTED** | 2 — detail with the originating signal |
 | Approval APIs | SCAFFOLDED | 6 |
 | Timeline API | SCAFFOLDED | 7 |
 | Executive overview | SCAFFOLDED | 9 |
@@ -193,7 +210,7 @@ All SCAFFOLDED as of Phase 1; all become SIMULATED on Session 4.
 | Capability | Status |
 |---|---|
 | Docker Compose (PostgreSQL 16, port 55432) | **IMPLEMENTED** — container healthy, no conflict with the local 5432 |
-| Alembic migrations | **IMPLEMENTED** — one baseline, 29 tables, 26 enum types, downgrade returns to empty |
+| Alembic migrations | **IMPLEMENTED** — `0001` baseline (29 tables, 26 enum types), `0002` sequence + unique; every downgrade tested |
 | Deterministic seeding | **IMPLEMENTED** — 92 rows, byte-identical per seed, idempotent |
 | GitHub Actions CI | **IMPLEMENTED** (full matrix Session 10) — every local gate runs on push and PR |
 | Offline fixture demo mode | SCAFFOLDED (Session 3) |

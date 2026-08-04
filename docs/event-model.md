@@ -1,10 +1,19 @@
 # Event Model
 
 **Status:** AUTHORITATIVE
-**Last updated:** 2026-08-01 (Phase 1)
+**Last updated:** 2026-08-03 (Session 2)
 
 Events are the input to the system; incidents are the unit of work. This document defines
 the canonical envelope, the detector contract, and the incident lifecycle.
+
+**Implementation status: this pipeline runs.** Ingestion, normalization, the detector
+registry, the `stalled_opportunity` detector, and incident creation are implemented and
+tested as of Session 2.
+
+> **The source feed is SIMULATED.** `events/sources.py` replays the locally seeded GTM
+> mirror as though a source adapter had delivered it. It does not connect to any external
+> system, and it carries `INGESTION_STATUS = "SIMULATED"`, which is stamped on every
+> ingestion response. Real adapters are Session 4 and later (ADR-0004).
 
 ---
 
@@ -116,6 +125,22 @@ rep misses.
 
 `dedupe_key = sha256(signal_type | opportunity_ref | detector_version | window_start)`
 
+`window_start` is **truncated to the UTC date**. Without truncation, two runs seconds
+apart produce different keys and therefore duplicate signals -- the replay-safety
+guarantee would hold under the frozen demo clock and fail silently under a real one.
+
+Three conditions that deliberately do **not** fire, each because absent or unusable data
+is not evidence of a stall:
+
+| Situation | Behaviour |
+|---|---|
+| No sales activity ever logged | No signal. "Never contacted" is indistinguishable from "history not loaded". |
+| Fewer than two usage snapshots | No signal. One week is not a trend. |
+| Zero usage baseline | No signal. Growth from zero is undefined, and a first week of usage is not a stall. |
+
+A non-USD opportunity also does not fire: v1 holds no exchange rates, and converting at
+an unstated rate would fabricate a number.
+
 ### Registered-but-unimplemented detectors
 
 These exist as registry entries with declared parameters and no implementation. They
@@ -171,9 +196,42 @@ stateDiagram-v2
 | `DISMISSED` | Judged a false positive | **Yes** |
 | `FAILED` | Unrecoverable error; state preserved for inspection | **Yes** |
 
-**Every transition is persisted** to `workflow_transitions` before the next node runs, with
-the originating node, the edge predicate that fired, and a state digest. Rule 13 is
-satisfied by construction: there is no way to move the workflow without leaving a record.
+### Severity assignment
+
+Severity is a banded function of weighted pipeline value, assigned at detection time and
+inherited by the incident. See ADR-0011.
+
+| Weighted value (`amount × probability`) | Severity |
+|---|---|
+| ≥ $250,000 | `CRITICAL` |
+| ≥ $100,000 | `HIGH` |
+| ≥ $25,000 | `MEDIUM` |
+| < $25,000 | `LOW` |
+
+The golden scenario computes `180,000.00 × 0.60 = 108,000.00` → `HIGH`. The bands are
+deterministic, versioned (`severity_bands/v1`), and boundary-tested; they are **not**
+empirically calibrated.
+
+### How an incident is opened
+
+An incident is created at `DETECTED` and immediately transitioned to `TRIAGED` through the
+state machine, rather than being written straight to `TRIAGED`. That costs one extra audit
+row and buys two things: the documented lifecycle is actually followed on the happy path,
+and the triage step is recorded rather than implied.
+
+`incidents.status` holds only the *current* state, so **every transition writes an
+`audit_events` row** — without it, an incident's history would not exist anywhere. Illegal
+transitions raise before anything is written, so a refusal leaves no trace: nothing
+happened.
+
+Incident references come from a PostgreSQL sequence rather than `count(*) + 1`, which is a
+race under any concurrency and would pass every single-threaded test.
+
+**Every workflow transition is persisted** to `workflow_transitions` before the next node
+runs, with the originating node, the edge predicate that fired, and a state digest. Rule 13
+is satisfied by construction: there is no way to move the workflow without leaving a
+record. (`workflow_transitions` is written from Session 3, when a graph exists to
+transition.)
 
 ---
 
@@ -184,7 +242,8 @@ Four independent layers, each at a different granularity:
 | Layer | Mechanism | Prevents |
 |---|---|---|
 | Ingestion | `UNIQUE (source_system, source_event_id)` on `raw_events` | Duplicate raw events |
-| Detection | `UNIQUE (dedupe_key)` on `signals` | A second incident for the same condition |
+| Detection | `UNIQUE (dedupe_key)` on `signals` | A second signal for the same condition |
+| Incident | `UNIQUE (signal_id)` on `incidents` | A second incident for the same signal |
 | Workflow | Checkpoint + `UNIQUE (run_id, sequence)` on transitions | Re-executing a completed node on resume |
 | Action | `UNIQUE (idempotency_key)` on `action_records` | The same CRM task or email draft twice |
 

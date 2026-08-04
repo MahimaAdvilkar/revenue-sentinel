@@ -10,15 +10,19 @@ cost, and evaluates its own behaviour.
 
 ## ⚠️ Current status — read this first
 
-> **Session 1 of 11 is complete: the foundations run, the workflow does not.**
+> **Session 2 of 11 is complete: detection runs, investigation does not.**
 >
-> What works today: PostgreSQL with all 29 tables, a reversible baseline migration,
-> deterministic synthetic data, typed domain models, the pipeline-impact calculator, and
-> `GET /health` — verified by 228 passing tests.
+> What works today: the full detection pipeline — ingestion, normalization, a pure
+> `stalled_opportunity` detector, incident creation, the lifecycle state machine, and four
+> HTTP endpoints. `make ingest` opens `INC-001`; running it again creates nothing.
+> Verified by 432 passing tests.
 >
-> What does not exist yet: **any agent, any LLM call, the MCP server, the policy engine,
-> execution, and the dashboard.** This system has never called a model. `make demo` does not
-> work. See [`PROJECT_STATUS.md`](PROJECT_STATUS.md) for the precise state.
+> **The event source is SIMULATED** — it replays the locally seeded GTM mirror, not an
+> external system, and says so on every response.
+>
+> What does not exist yet: **any agent node, any LLM call, the MCP server, the policy
+> engine, execution, and the dashboard.** This system has never called a model. `make demo`
+> does not work. See [`PROJECT_STATUS.md`](PROJECT_STATUS.md) for the precise state.
 >
 > **All integrations are SIMULATED by design.** No real HubSpot, Salesforce, Gmail, Slack,
 > customer, or employer data is connected — now or during the initial build. Every
@@ -142,8 +146,9 @@ make setup              # install dependencies (uv, Python 3.12.3)
 make up                 # start PostgreSQL on host port 55432
 make migrate            # 29 tables, 26 native enum types
 make seed               # 92 deterministic rows, all is_simulated = true
-make check              # lint, format, mypy --strict, boundaries, 228 tests
-make api                # then: curl localhost:8000/health
+make ingest             # detect signals and open incidents (SIMULATED source feed)
+make check              # lint, format, mypy --strict, boundaries, 432 tests
+make api                # then: curl localhost:8000/incidents/INC-001
 ```
 
 Confirm the golden scenario landed:
@@ -155,7 +160,7 @@ docker compose exec postgres psql -U sentinel -d revenue_sentinel \
 ```
 
 **Not yet functional** — these `Makefile` targets are declared and become real later:
-`make ingest` (Session 2), `make mcp` (4), `make demo` (6), `make eval` (8), `make web` (9).
+`make mcp` (Session 4), `make demo` (6), `make eval` (8), `make web` (9).
 
 **Prerequisites:** [`uv`](https://docs.astral.sh/uv/), Docker with Compose, and Node 22+
 with pnpm (Session 9 only). `uv` installs Python 3.12.3 itself, so a system Python of the

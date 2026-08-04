@@ -1,7 +1,7 @@
 # Data Model
 
 **Status:** AUTHORITATIVE
-**Last updated:** 2026-08-02 (Session 1)
+**Last updated:** 2026-08-03 (Session 2)
 
 PostgreSQL 16, **synchronous** SQLAlchemy 2.x ORM (ADR-0009), Alembic migrations.
 
@@ -116,7 +116,7 @@ cannot open a second incident for the same condition.
 
 | Table | Notable columns |
 |---|---|
-| `incidents` | `incident_ref` (`INC-001`), `signal_id`, `incident_type`, `status`, `severity`, `account_id`, `opportunity_id`, `opened_at`, `closed_at`, `title` |
+| `incidents` | `incident_ref` (`INC-001`), `signal_id` **UNIQUE**, `incident_type`, `status`, `severity`, `account_id`, `opportunity_id`, `opened_at`, `closed_at`, `title` |
 | `workflow_runs` | `incident_id`, `graph_version`, `status`, `current_node`, `started_at`, `ended_at`, `checkpoint_ref` |
 | `workflow_transitions` | `run_id`, `sequence`, `from_node`, `to_node`, `edge_predicate`, `occurred_at`, `duration_ms`, `state_digest`. **Append-only — this is the source of truth for run history.** |
 | `agent_decisions` | `run_id`, `agent_name`, `decision_type`, `rationale`, `inputs_digest`, `output` JSONB, `model_call_id` nullable |
@@ -185,6 +185,7 @@ finding there later.
 | `UNIQUE (dedupe_key)` | `signals` | Prevents duplicate incident creation |
 | `UNIQUE (source_system, source_event_id)` | `raw_events` | Ingestion is replay-safe |
 | `UNIQUE (run_id, sequence)` | `workflow_transitions` | Transition ordering is total and gapless |
+| `UNIQUE (signal_id)` | `incidents` | One signal opens at most one incident — the third replay-safety boundary (migration `0002`) |
 | `CHECK (amount >= 0)` | `opportunities`, `impact_assessments` | Guards nonsense figures |
 | `INDEX (incident_id, occurred_at)` | `audit_events` | Powers the incident timeline in one query |
 | `INDEX (run_id, sequence)` | `workflow_transitions` | Powers the run replay view |
@@ -211,7 +212,13 @@ See [`demo-scenario.md`](demo-scenario.md) for the full walkthrough.
 
 ## 6. Migration strategy
 
-- Alembic, one baseline migration on Day 1, `downgrade` returns to empty.
+- Alembic. `0001_baseline` creates the whole schema; `0002` adds the `incident_ref_seq`
+  sequence and `UNIQUE (signal_id)` on `incidents`. Every revision's `downgrade` is tested.
+- **`incident_ref_seq`** allocates `INC-001`, `INC-002`, ... It is created explicitly in
+  migration `0002` rather than declared in `Base.metadata`, because Alembic's autogenerate
+  does not compare standalone sequences. Sequence allocation is deliberately not
+  transactional — a rolled-back insert burns a number — so the incident service allocates
+  only after deduplication has decided the insert will happen.
 - No data migrations in v1 — the database is disposable and re-seeded from fixtures.
 - Schema changes after Day 1 require a new revision plus an update to this document in
   the same commit (rule 11 / rule 15).

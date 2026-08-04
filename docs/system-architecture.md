@@ -191,6 +191,37 @@ sequenceDiagram
 
 ---
 
+## 4a. HTTP surface
+
+**Status: this is the complete list as of Session 2.** Anything not in this table
+does not exist. The route surface is pinned by a test, so an undocumented endpoint
+appearing is a build failure rather than a discovery.
+
+| Method | Path | Purpose | Session |
+|---|---|---|---|
+| `GET` | `/health` | Liveness and database reachability. `503` when the database is unreachable. | 1 |
+| `POST` | `/ingest` | Run one ingestion cycle over the **SIMULATED** source feed: sources → raw events → normalized events → detectors → signals → incidents. | 2 |
+| `GET` | `/incidents` | The incident queue. Optional `status`, `severity`, and `limit` filters. | 2 |
+| `GET` | `/incidents/{incident_ref}` | One incident with its account, opportunity, and the signal that produced it. `404` if unknown. | 2 |
+
+Routers are thin (boundary R2): parse, delegate, serialize. `POST /ingest` calls
+`events/pipeline.py`, which is importable and tested without an HTTP server.
+
+**`POST /ingest` is replay-safe, not idempotent-in-response.** The first call opens
+incidents and the second reports zero, because the underlying constraints refuse
+duplicates at three levels. The response reports both what was created and what was
+deduplicated, since that distinction is the design rather than an implementation
+detail.
+
+Every response carrying GTM data exposes `is_simulated`, and every ingestion response
+carries `ingestion_status: "SIMULATED"`. The dashboard renders its badges from those
+fields rather than from hardcoded strings, so rule 5 is a property of the payload.
+
+Arriving later: `POST /incidents/{ref}/approve` and `/reject` (Session 6),
+`GET /incidents/{ref}/timeline` (Session 7).
+
+---
+
 ## 5. Deployment design
 
 v1 is deliberately small: one API process, one database, one frontend. No broker, no
