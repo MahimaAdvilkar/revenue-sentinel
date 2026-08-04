@@ -20,6 +20,7 @@ too — an ADR is where tribal knowledge goes to become reviewable.
 | [0008](0008-banded-risk-factors.md) | Stall risk and usage offset are banded lookup tables | Accepted | 2026-08-02 |
 | [0009](0009-synchronous-persistence.md) | Synchronous SQLAlchemy for persistence | Accepted | 2026-08-02 |
 | [0010](0010-enforcing-no-any-by-ast-check.md) | "Zero `Any`" is enforced by an AST check | Accepted | 2026-08-02 |
+| [0011](0011-incident-severity-bands.md) | Incident severity is banded weighted pipeline value | Accepted | 2026-08-03 |
 
 ---
 
