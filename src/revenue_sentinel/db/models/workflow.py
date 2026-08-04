@@ -36,7 +36,12 @@ class Incident(Base, TimestampMixin):
 
     id: Mapped[uuid_pk]
     incident_ref: Mapped[short_text] = mapped_column(unique=True, index=True)
-    signal_id: Mapped[uuid_fk] = mapped_column(sa.ForeignKey("signals.id", ondelete="CASCADE"))
+    # UNIQUE: the ERD says one signal opens at most one incident, and this is where
+    # that becomes true. It is also the third replay-safety boundary -- it holds
+    # even if raw-event and signal deduplication were both somehow bypassed.
+    signal_id: Mapped[uuid_fk] = mapped_column(
+        sa.ForeignKey("signals.id", ondelete="CASCADE"), unique=True
+    )
     incident_type: Mapped[IncidentType] = mapped_column(pg_enum(IncidentType, "incident_type"))
     status: Mapped[IncidentStatus] = mapped_column(pg_enum(IncidentStatus, "incident_status"))
     severity: Mapped[Severity] = mapped_column(pg_enum(Severity, "severity"))
