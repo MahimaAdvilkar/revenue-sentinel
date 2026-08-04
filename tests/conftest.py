@@ -153,8 +153,15 @@ def seeded_session(db_session: Session, settings: Settings) -> Session:
 
     Uses the configured SEED and EVALUATION_TIMESTAMP so tests assert against the
     same data the demo runs on, not a variant of it.
+
+    Also restarts `incident_ref_seq`. Sequence allocation is deliberately *not*
+    transactional -- that is what makes it safe under concurrency -- so without this
+    the first test to open an incident would get `INC-001` and every later one a
+    different number, making assertions depend on test ordering. `ALTER SEQUENCE
+    ... RESTART` is transactional and unwinds with the surrounding rollback.
     """
     from revenue_sentinel.db.seeding import seed_database
 
+    db_session.execute(sa.text("ALTER SEQUENCE incident_ref_seq RESTART WITH 1"))
     seed_database(db_session, seed=settings.seed, evaluated_at=settings.evaluation_timestamp)
     return db_session

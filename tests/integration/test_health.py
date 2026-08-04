@@ -75,8 +75,13 @@ def test_health_returns_503_when_the_database_is_unreachable(settings: Settings)
     assert body["database"] == "unreachable"
 
 
-def test_the_application_exposes_only_the_health_route(client: TestClient) -> None:
-    """Session 1 must remain unfinished on purpose: no /incidents, /ingest, /approvals."""
+def test_the_application_exposes_exactly_the_session_2_routes(client: TestClient) -> None:
+    """The route surface is pinned, so scope creep shows up as a failing test.
+
+    This asserted `{"/health"}` through Session 1 and was updated when Session 2
+    deliberately added three endpoints -- the requirement moved, not the assertion.
+    Approval endpoints arrive in Session 6 and will move it again.
+    """
     paths = set(client.app.openapi()["paths"])  # type: ignore[attr-defined]
 
-    assert paths == {"/health"}
+    assert paths == {"/health", "/ingest", "/incidents", "/incidents/{incident_ref}"}
