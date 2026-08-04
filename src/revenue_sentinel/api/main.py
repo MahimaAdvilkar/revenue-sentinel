@@ -4,8 +4,8 @@ The app is built by a function rather than declared at import time so tests can
 construct one with an isolated engine. A module-level `app` still exists because
 `uvicorn revenue_sentinel.api.main:app` is the documented run command.
 
-Session 1 mounts exactly one route. `/incidents`, `/ingest`, and `/approvals`
-arrive in Sessions 2 and 6.
+Four routes as of Session 2: `/health`, `POST /ingest`, `GET /incidents`, and
+`GET /incidents/{incident_ref}`. Approval endpoints arrive in Session 6.
 """
 
 from __future__ import annotations
@@ -19,6 +19,8 @@ from fastapi import FastAPI
 from sqlalchemy import Engine
 
 from revenue_sentinel.api.health import router as health_router
+from revenue_sentinel.api.incidents import router as incidents_router
+from revenue_sentinel.api.ingest import router as ingest_router
 from revenue_sentinel.core.config import Settings, get_settings
 from revenue_sentinel.core.logging import configure_logging, get_logger
 from revenue_sentinel.db.session import build_engine, build_session_factory
@@ -60,6 +62,8 @@ def create_app(*, settings: Settings | None = None, engine: Engine | None = None
     app.state.version = package_version("revenue-sentinel")
 
     app.include_router(health_router)
+    app.include_router(ingest_router)
+    app.include_router(incidents_router)
 
     logger.info(
         "application_configured",
