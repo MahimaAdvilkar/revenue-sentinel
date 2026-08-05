@@ -1,0 +1,21 @@
+{
+  "$note": "HAND-AUTHORED, not recorded from a live model. See ADR-0013 and PROJECT_STATUS.md. Deliberately hedged rather than crisply confident, because that is how a real model writes when the evidence is suggestive but not conclusive -- a fixture that reads too cleanly would test an unrealistically easy parse.",
+  "node_name": "generate_hypotheses",
+  "prompt_digest": "872b20219b7481aae00695b8a52a9f91ea53dda379ea5b753233327871fcc167",
+  "output": {
+    "hypotheses": [
+      {
+        "rank": 1,
+        "statement": "The buying committee appears to be in active technical evaluation while the seller has gone quiet. Feature events rose from 1,250 to 1,750 week over week and active users from 12 to 19, which is the shape of a team trialling rather than a single champion browsing; over the same window the most recent sales touch is an unanswered outbound email about the proposal. The likeliest reading is that evaluation continued without the AE, and the proposal is now sitting with a group who have questions nobody has been asked.",
+        "confidence": 0.7200,
+        "cites": ["EV-002", "EV-004"]
+      },
+      {
+        "rank": 2,
+        "statement": "An unresolved technical objection may be holding the proposal rather than commercial hesitation. There is an open P3 issue about API rate limits during bulk route imports, which touches the fleet-sync integration the expansion depends on. Engagement shows two opens and a click but no meeting held in the window, which is consistent with a buyer who is still reading and has a reason not to book time. This is weaker than the first hypothesis -- the issue is only P3 and may be unrelated -- but it is cheap to rule out.",
+        "confidence": 0.4100,
+        "cites": ["EV-005", "EV-006"]
+      }
+    ]
+  }
+}

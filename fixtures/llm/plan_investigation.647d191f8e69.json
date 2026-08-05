@@ -1,0 +1,35 @@
+{
+  "$note": "HAND-AUTHORED, not recorded from a live model. See ADR-0013 and PROJECT_STATUS.md. No Anthropic API call has been made by this project.",
+  "node_name": "plan_investigation",
+  "prompt_digest": "647d191f8e69a1e720e8efce21e8c427c105250019c53c5d39685f9f00929262",
+  "output": {
+    "steps": [
+      {
+        "order": 1,
+        "source": "crm_get_opportunity",
+        "objective": "Confirm the current stage, amount, probability and expected close date on the record itself, so later reasoning is anchored to the deal as the CRM has it rather than to the incident summary."
+      },
+      {
+        "order": 2,
+        "source": "crm_list_account_activities",
+        "objective": "Establish what the last genuine sales contact actually was and what it said. A 14-day gap is only meaningful once we know whether the last touch was an unanswered outbound or a conversation that concluded."
+      },
+      {
+        "order": 3,
+        "source": "product_get_usage_summary",
+        "objective": "Quantify the usage trend week over week and see whether growth is broad or concentrated, which distinguishes an evaluation in progress from ordinary seasonal noise."
+      },
+      {
+        "order": 4,
+        "source": "engagement_get_email_activity",
+        "objective": "Check whether the buyer has been engaging asynchronously -- opens and clicks without meetings would suggest interest that has not been converted into a conversation."
+      },
+      {
+        "order": 5,
+        "source": "support_get_open_issues",
+        "objective": "Look for unresolved technical friction. An open issue touching the evaluated functionality is a common unstated blocker on a proposal."
+      }
+    ],
+    "rationale": "The incident pairs sales silence with rising usage, so the plan is ordered to establish the deal state first, then the two halves of that contradiction, then a likely confounder. I have included the support step last because it is the least likely to be decisive but the most likely to explain a stall if the other three come back unremarkable."
+  }
+}
