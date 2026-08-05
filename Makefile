@@ -130,6 +130,10 @@ mcp:  ## [S4] Run the GTM MCP server over stdio
 ingest:  ## Ingest SIMULATED source events, detect signals, open incidents
 	$(UV) run python -m scripts.ingest
 
+.PHONY: investigate
+investigate:  ## Run the investigation graph offline. INCIDENT=INC-001
+	$(UV) run python -m scripts.investigate $(or $(INCIDENT),INC-001)
+
 .PHONY: demo
 demo:  ## [S6] Run the golden scenario end to end — OFFLINE, no API key
 	DEMO_MODE=fixture $(UV) run python -m scripts.demo

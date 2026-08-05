@@ -9,10 +9,12 @@ from __future__ import annotations
 import typer
 
 from revenue_sentinel.core.config import get_settings
+from revenue_sentinel.core.errors import RevenueSentinelError
 from revenue_sentinel.core.logging import configure_logging
 from revenue_sentinel.db.seeding import seed_database
 from revenue_sentinel.db.session import build_engine, build_session_factory, session_scope
 from revenue_sentinel.events.pipeline import run_ingestion_cycle
+from revenue_sentinel.orchestration.runner import run_investigation
 
 app = typer.Typer(
     name="revenue-sentinel",
@@ -85,6 +87,63 @@ def ingest() -> None:
     typer.echo(f"  incidents opened     {summary.incidents_opened:>4}")
     if summary.incident_refs:
         typer.echo(f"  incidents            {', '.join(summary.incident_refs)}")
+
+
+@app.command()
+def investigate(incident_ref: str) -> None:
+    """Run the investigation graph against one incident.
+
+    Offline by default: `DEMO_MODE=fixture` replays hand-authored responses and makes
+    no network call. A fixture miss raises rather than falling back to a live call.
+    """
+    settings = get_settings()
+    configure_logging(level=settings.log_level, log_format=settings.log_format)
+
+    engine = build_engine(settings)
+    factory = build_session_factory(engine)
+    try:
+        with session_scope(factory) as session:
+            outcome = run_investigation(session, incident_ref, settings=settings)
+            state = outcome.state
+
+        typer.echo(f"Investigation complete for {incident_ref} (DEMO_MODE={settings.demo_mode})")
+        typer.echo(f"  run                  {outcome.run_id}")
+        typer.echo(f"  transitions recorded {outcome.transitions}")
+
+        if state.plan is not None:
+            typer.echo(f"\n  PLAN ({len(state.plan.steps)} steps)")
+            for step in state.plan.steps:
+                typer.echo(f"    {step.order}. {step.source.value}")
+                typer.echo(f"       {step.objective}")
+
+        typer.echo(f"\n  EVIDENCE ({len(state.evidence)} items)")
+        for item in state.evidence:
+            typer.echo(
+                f"    {item.evidence_ref}  {item.record.source_system.value:<11} "
+                f"{item.record.tool_name}"
+            )
+
+        if state.hypotheses is not None:
+            typer.echo(f"\n  HYPOTHESES ({len(state.hypotheses.hypotheses)})")
+            for draft in sorted(state.hypotheses.hypotheses, key=lambda h: h.rank):
+                typer.echo(f"    H{draft.rank} (confidence {draft.confidence})")
+                typer.echo(f"       {draft.statement}")
+                typer.echo(f"       cites: {', '.join(draft.cites)}")
+
+        if state.impact is not None:
+            impact = state.impact
+            typer.echo("\n  IMPACT (deterministic -- analytics/, never a model)")
+            typer.echo(f"    pipeline value   {impact.pipeline_value} {impact.currency}")
+            typer.echo(f"    weighted value   {impact.weighted_value} {impact.currency}")
+            typer.echo(f"    stall risk       {impact.applied_stall_risk_factor}")
+            typer.echo(f"    at risk (gross)  {impact.at_risk_gross} {impact.currency}")
+            typer.echo(f"    usage offset     {impact.applied_usage_offset}")
+            typer.echo(f"    AT RISK          {impact.at_risk_value} {impact.currency}")
+    except RevenueSentinelError as error:
+        # Our own errors are expected conditions with actionable messages. A traceback
+        # would bury the message that explains what to do next.
+        typer.secho(f"error: {error}", err=True, fg=typer.colors.RED)
+        raise typer.Exit(code=1) from error
 
 
 if __name__ == "__main__":  # pragma: no cover -- exercised via the console script
