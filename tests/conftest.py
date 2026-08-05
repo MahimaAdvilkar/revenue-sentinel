@@ -15,17 +15,20 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 import pytest
 import sqlalchemy as sa
+from pydantic import BaseModel
 from sqlalchemy import Engine
 from sqlalchemy.engine import URL, make_url
 from sqlalchemy.orm import Session
 
 from revenue_sentinel.core.config import PROJECT_ROOT, Settings, get_settings
+from revenue_sentinel.intelligence.ports import LLMClient, LLMRequest, LLMResponse
 
 TEST_DB_SUFFIX = "_test"
 
@@ -165,3 +168,34 @@ def seeded_session(db_session: Session, settings: Settings) -> Session:
     db_session.execute(sa.text("ALTER SEQUENCE incident_ref_seq RESTART WITH 1"))
     seed_database(db_session, seed=settings.seed, evaluated_at=settings.evaluation_timestamp)
     return db_session
+
+
+@pytest.fixture
+def make_stub_llm() -> Callable[[dict[str, BaseModel]], LLMClient]:
+    """Build an `LLMClient` that returns canned output per node name.
+
+    Lets every agent be tested as a pure function with no fixtures on disk, no
+    network, and no graph running -- which is the property ADR-0002 rule 3 exists to
+    guarantee.
+    """
+
+    def build(responses: dict[str, BaseModel]) -> LLMClient:
+        class StubLLMClient:
+            def complete_structured(self, request: LLMRequest[Any]) -> LLMResponse[Any]:
+                if request.node_name not in responses:
+                    raise AssertionError(f"stub has no response for {request.node_name}")
+                return LLMResponse(
+                    output=responses[request.node_name],
+                    model_id=request.model_id,
+                    effort=request.effort,
+                    input_tokens=0,
+                    output_tokens=0,
+                    latency_ms=0,
+                    stop_reason="stub",
+                    is_replay=True,
+                    prompt_digest="0" * 64,
+                )
+
+        return StubLLMClient()
+
+    return build
