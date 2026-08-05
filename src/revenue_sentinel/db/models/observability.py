@@ -75,6 +75,12 @@ class ModelCall(Base, CreatedAtMixin):
     stop_reason: Mapped[str] = mapped_column(sa.String(32))
     trace_id: Mapped[trace_id_col]
     span_id: Mapped[span_id_col]
+    # True when the response came from a fixture rather than the API. Mirrors the
+    # `is_simulated` convention: honesty about provenance is a schema property, not a
+    # convention someone has to remember. See ADR-0013.
+    is_replay: Mapped[bool] = mapped_column(
+        sa.Boolean, nullable=False, server_default=sa.false(), default=False
+    )
 
     __table_args__ = (
         sa.CheckConstraint(

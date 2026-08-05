@@ -78,6 +78,10 @@ class OpportunityRepository:
             raise NotFoundError("opportunity", opportunity_ref)
         return opportunity
 
+    def get_by_id(self, opportunity_id: UUID) -> Opportunity | None:
+        row = self._session.get(orm.Opportunity, opportunity_id)
+        return Opportunity.model_validate(row) if row is not None else None
+
     def list_for_account(self, account_id: UUID) -> list[Opportunity]:
         rows = self._session.scalars(
             sa.select(orm.Opportunity)
