@@ -10,19 +10,20 @@ cost, and evaluates its own behaviour.
 
 ## ⚠️ Current status — read this first
 
-> **Session 2 of 11 is complete: detection runs, investigation does not.**
+> **Session 3 of 11 is complete: detection and investigation run, offline and for free.**
 >
-> What works today: the full detection pipeline — ingestion, normalization, a pure
-> `stalled_opportunity` detector, incident creation, the lifecycle state machine, and four
-> HTTP endpoints. `make ingest` opens `INC-001`; running it again creates nothing.
-> Verified by 432 passing tests.
+> `make investigate INCIDENT=INC-001` produces a plan, six evidence items, two hypotheses
+> each citing real evidence, and **$108,000 weighted / $32,130 at risk** — with no API key
+> and no network. Verified by 548 passing tests.
 >
-> **The event source is SIMULATED** — it replays the locally seeded GTM mirror, not an
-> external system, and says so on every response.
+> **Two things are SIMULATED and labelled as such.** The event source replays the locally
+> seeded GTM mirror, not an external system. And the LLM fixtures are **hand-authored, not
+> recorded from a model** (ADR-0013) — they prove the pipeline and the schemas, not that
+> the prompts work against a live model. **This system has never made an API call.**
 >
-> What does not exist yet: **any agent node, any LLM call, the MCP server, the policy
-> engine, execution, and the dashboard.** This system has never called a model. `make demo`
-> does not work. See [`PROJECT_STATUS.md`](PROJECT_STATUS.md) for the precise state.
+> What does not exist yet: **the MCP server, the strategy agent, the policy engine,
+> execution, cost governance, and the dashboard.** `make demo` does not work. See
+> [`PROJECT_STATUS.md`](PROJECT_STATUS.md) for the precise state.
 >
 > **All integrations are SIMULATED by design.** No real HubSpot, Salesforce, Gmail, Slack,
 > customer, or employer data is connected — now or during the initial build. Every
@@ -147,7 +148,8 @@ make up                 # start PostgreSQL on host port 55432
 make migrate            # 29 tables, 26 native enum types
 make seed               # 92 deterministic rows, all is_simulated = true
 make ingest             # detect signals and open incidents (SIMULATED source feed)
-make check              # lint, format, mypy --strict, boundaries, 432 tests
+make investigate        # run the investigation graph offline (INCIDENT=INC-001)
+make check              # lint, format, mypy --strict, boundaries, 548 tests
 make api                # then: curl localhost:8000/incidents/INC-001
 ```
 
@@ -160,7 +162,8 @@ docker compose exec postgres psql -U sentinel -d revenue_sentinel \
 ```
 
 **Not yet functional** — these `Makefile` targets are declared and become real later:
-`make mcp` (Session 4), `make demo` (6), `make eval` (8), `make web` (9).
+`make mcp` (Session 4), `make demo` (6), `make eval` (8), `make web` (9). `make record`
+works but makes billable API calls and **has never been run**.
 
 **Prerequisites:** [`uv`](https://docs.astral.sh/uv/), Docker with Compose, and Node 22+
 with pnpm (Session 9 only). `uv` installs Python 3.12.3 itself, so a system Python of the

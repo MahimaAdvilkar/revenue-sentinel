@@ -119,10 +119,15 @@ Over-general normalizer before the second source type exists.
 
 ---
 
-## Session 3 — Investigation graph
+## Session 3 — Investigation graph ✅ COMPLETE
 
 **Objective.** The first LLM-backed agents, running inside the LangGraph state machine,
 producing evidence, hypotheses, and a deterministic impact figure.
+
+**Outcome.** All eight acceptance criteria met plus five added during planning; 548 tests
+pass (116 new); **$0 spent and no live API call made**. ADR-0012 (checkpointer, closing
+ADR-0002's deferred question) and ADR-0013 (hand-authored fixtures, qualifying ADR-0007).
+Deviations and the unexercised live path recorded in [`PROJECT_STATUS.md`](PROJECT_STATUS.md).
 
 **Files / modules** — `orchestration/` (graph definition, state, checkpointing, transition
 recorder), `agents/planner.py`, `agents/researcher.py`, `agents/analyst.py`,

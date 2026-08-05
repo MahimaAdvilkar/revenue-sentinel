@@ -1,7 +1,7 @@
 # Data Model
 
 **Status:** AUTHORITATIVE
-**Last updated:** 2026-08-03 (Session 2)
+**Last updated:** 2026-08-04 (Session 3)
 
 PostgreSQL 16, **synchronous** SQLAlchemy 2.x ORM (ADR-0009), Alembic migrations.
 
@@ -158,10 +158,16 @@ execution is prevented by the database, which is the only place it can be preven
 | Table | Notable columns |
 |---|---|
 | `tool_calls` | `run_id`, `node_name`, `tool_name`, `args` JSONB, `result_digest`, `status`, `duration_ms`, `trace_id`, `span_id`, `parent_span_id` |
-| `model_calls` | `run_id`, `node_name`, `model_id`, `effort`, `input_tokens`, `output_tokens`, `cache_read_tokens`, `cache_write_tokens`, `latency_ms`, `stop_reason`, `trace_id`, `span_id` |
+| `model_calls` | `run_id`, `node_name`, `model_id`, `effort`, `input_tokens`, `output_tokens`, `cache_read_tokens`, `cache_write_tokens`, `latency_ms`, `stop_reason`, `is_replay`, `trace_id`, `span_id` |
 | `cost_entries` | `run_id`, `model_call_id` nullable, `tool_call_id` nullable, `cost_type`, `amount_usd` NUMERIC(12,6), `pricing_version`, `recorded_at` |
 | `budgets` | `scope` (`GLOBAL`/`INCIDENT`/`RUN`), `scope_ref`, `period`, `limit_usd` NUMERIC, `consumed_usd` NUMERIC, `hard_stop` BOOLEAN |
 | `audit_events` | `run_id`, `incident_id`, `event_type`, `actor` (`system`/`agent:<name>`/`user:<id>`), `payload` JSONB, `occurred_at`. **Append-only.** |
+
+`model_calls.is_replay` is `TRUE` when the response came from a fixture rather than the
+API (migration `0003`). Replayed rows carry **zero tokens, because zero were consumed** —
+not estimates, and not copied from a past call. The row records that an LLM call *site* was
+exercised; it does not claim an API call occurred. This mirrors the `is_simulated`
+convention: provenance is a property of the row. See ADR-0013.
 
 ### 3.7 Evaluation
 
@@ -213,7 +219,8 @@ See [`demo-scenario.md`](demo-scenario.md) for the full walkthrough.
 ## 6. Migration strategy
 
 - Alembic. `0001_baseline` creates the whole schema; `0002` adds the `incident_ref_seq`
-  sequence and `UNIQUE (signal_id)` on `incidents`. Every revision's `downgrade` is tested.
+  sequence and `UNIQUE (signal_id)` on `incidents`; `0003` adds `model_calls.is_replay`.
+  Every revision's `downgrade` is tested.
 - **`incident_ref_seq`** allocates `INC-001`, `INC-002`, ... It is created explicitly in
   migration `0002` rather than declared in `Base.metadata`, because Alembic's autogenerate
   does not compare standalone sequences. Sequence allocation is deliberately not

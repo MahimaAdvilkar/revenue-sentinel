@@ -87,12 +87,15 @@ and audit logging all live outside the node.
 
 ### Node reference
 
-| Node | Agent | LLM | Reads from state | Writes to state |
-|---|---|---|---|---|
-| `plan_investigation` | Investigation Planner | Yes | `incident` | `plan` |
-| `collect_evidence` | Research Agent | Yes (tool choice) | `plan` | `evidence[]` |
-| `generate_hypotheses` | Revenue Analyst | Yes | `evidence[]` | `hypotheses[]` |
-| `calculate_impact` | Revenue Analyst | **No** | `incident`, `evidence[]` | `impact` |
+**Implementation status (Session 3):** the first four nodes are built and the graph ends
+after `calculate_impact`. Everything from `formulate_strategy` onward is Sessions 5-6.
+
+| Node | Agent | LLM | Reads from state | Writes to state | Built |
+|---|---|---|---|---|---|
+| `plan_investigation` | Investigation Planner | Yes | `incident` | `plan` | **S3** |
+| `collect_evidence` | Research Agent | Yes (source choice) | `plan` | `evidence[]` | **S3** |
+| `generate_hypotheses` | Revenue Analyst | Yes | `evidence[]` | `hypotheses[]` | **S3** |
+| `calculate_impact` | Revenue Analyst | **No** | `incident`, `evidence[]` | `impact` | **S3** |
 | `formulate_strategy` | Strategy Agent | Yes (draft only) | `hypotheses[]`, `impact` | `interventions[]` (ranked) |
 | `evaluate_policy` | Policy & Risk | **No** | `interventions[]` | `policy_decisions[]` |
 | `execute_auto_actions` | Execution | **No** | `policy_decisions[]` | `actions[]` |
@@ -130,6 +133,20 @@ keep the v1 graph linear and the demo timeline readable. Parallelising it is a R
 transition is written to `workflow_transitions` before the next node runs. LangGraph's
 checkpointing is used for execution resume only — see ADR-0002.
 
+**As built in Session 3**, `WorkflowState` carries only the fields the four implemented
+nodes write: `plan`, `evidence`, `hypotheses`, `impact`, plus run identity and the injected
+`evaluated_at`. Fields for `interventions`, `policy_decisions`, `actions`, and
+`evaluation_result` are deliberately **absent until the nodes that write them exist** — a
+typed field nothing writes is a claim the graph does something it does not.
+
+The checkpointer is `InMemorySaver` (ADR-0012). Session 3 has no interrupt, and the durable
+record is `workflow_transitions` either way; the Postgres saver arrives in Session 6.
+
+Transition recording, model-call and agent-decision persistence all happen in a wrapper in
+`orchestration/graph.py`, never in a node body. A test asserts that `nodes.py` imports no
+persistence and that no node body exceeds six statements -- a fat node is the leading
+indicator of the framework absorption ADR-0002 exists to prevent.
+
 ---
 
 ## 4. Human-in-the-loop
@@ -152,12 +169,22 @@ regex over model output, and no `json.loads` on an unvalidated string.
 | Node | Output model | Key validated invariants |
 |---|---|---|
 | `plan_investigation` | `InvestigationPlan` | 1–6 steps; every step names a permitted MCP tool |
-| `collect_evidence` | `EvidenceRequest` | Tool name in allowlist; args match the tool's schema |
+| `collect_evidence` | `EvidenceSelection` | Every source is in the closed vocabulary **and** was named in the plan |
 | `generate_hypotheses` | `HypothesisSet` | ≥2 hypotheses; each cites ≥1 `evidence_id` that exists in state |
 | `formulate_strategy` | `InterventionSet` | Exactly 3 interventions; each has a declared `action_type` |
 
 The "cites an evidence_id that exists in state" check is the anti-hallucination gate: a
 hypothesis that references invented evidence fails validation and is rejected, not shown.
+
+It cannot be a schema rule -- a schema has no way to know which evidence ids are in state --
+so it runs in `agents/citations.py` **before persistence**, and the whole run aborts. There
+is a second, structural layer beneath it: `hypothesis_evidence` has foreign keys to both
+sides, so a fabricated reference has no row to point at even if the first check were
+bypassed.
+
+In Session 3 evidence is gathered through the `EvidenceSource` port backed by repositories.
+Session 4 replaces that implementation with MCP-backed tools; the port's method names are
+already the tool names, so the agents do not change.
 
 ---
 

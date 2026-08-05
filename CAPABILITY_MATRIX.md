@@ -1,6 +1,6 @@
 # Capability Matrix
 
-**Last updated:** 2026-08-03 — end of Session 2
+**Last updated:** 2026-08-04 — end of Session 3
 **Rule:** every capability in this repository carries exactly one of four statuses, and the
 status shown here matches what the code and the dashboard say (rules 5 and 19).
 
@@ -25,8 +25,17 @@ status shown here matches what the code and the dashboard say (rules 5 and 19).
 > `NotImplementedError` and are ROADMAP. A test asserts the count, so "eight detectors"
 > cannot be claimed anywhere, including by accident.
 >
-> **No agent node, no LLM call, no MCP tool, no policy engine, and no dashboard exists.**
-> This system has still never called a model.
+> **The investigation graph runs offline.** Four nodes, three LLM call sites, and the
+> deterministic impact calculator, producing $108,000 weighted and $32,130 at risk on the
+> golden scenario.
+>
+> **No live model call has ever been made.** The LLM fixtures are **hand-authored**, not
+> recorded (ADR-0013). `AnthropicLLMClient` and `make record` are written and unit-tested
+> against a stub but have never been executed against the API. The fixtures prove the
+> pipeline and the schemas; they do **not** prove the prompts work against a live model.
+>
+> **No MCP tool, no policy engine, no execution, no cost tracking, and no dashboard
+> exists.**
 
 ---
 
@@ -99,10 +108,10 @@ They are counted by the registry and excluded from execution by `implemented_det
 | Agent | Implementation | Status | Session |
 |---|---|---|---|
 | Signal Agent | Deterministic | **IMPLEMENTED** | 2 — runs upstream of the graph |
-| Investigation Planner | **LLM** | SCAFFOLDED | 3 |
-| Research Agent | **LLM** (tool choice) | SCAFFOLDED | 3 |
-| Revenue Analyst — hypotheses | **LLM** | SCAFFOLDED | 3 |
-| Revenue Analyst — impact | Deterministic | **Calculator IMPLEMENTED**, agent SCAFFOLDED | 1 (calculator), 3 (wired into the graph) |
+| Investigation Planner | **LLM** | **IMPLEMENTED** (fixture-backed) | 3 |
+| Research Agent | **LLM** (source choice) | **IMPLEMENTED** (fixture-backed) | 3 |
+| Revenue Analyst — hypotheses | **LLM** | **IMPLEMENTED** (fixture-backed) | 3 |
+| Revenue Analyst — impact | Deterministic | **IMPLEMENTED** | 1 (calculator), 3 (wired into the graph) |
 | Strategy Agent — draft | **LLM** | SCAFFOLDED | 5 |
 | Strategy Agent — ranking | Deterministic | SCAFFOLDED | 5 |
 | Policy & Risk Agent | Deterministic | SCAFFOLDED | 5 |
@@ -112,9 +121,9 @@ They are counted by the registry and excluded from execution by `implemented_det
 
 | Capability | Status | Session |
 |---|---|---|
-| LangGraph state machine | SCAFFOLDED | 3 |
-| Persisted state transitions | SCAFFOLDED | 3 |
-| Checkpoint and resume | SCAFFOLDED | 3 |
+| LangGraph state machine | **IMPLEMENTED** | 3 — 4 nodes; graph ends at `calculate_impact` |
+| Persisted state transitions | **IMPLEMENTED** | 3 — written before the next node runs |
+| Checkpoint and resume | SCAFFOLDED | `InMemorySaver` only (ADR-0012); durable saver in 6 |
 | Human-in-the-loop interrupt | SCAFFOLDED | 6 |
 | LLM judge for subjective quality | ROADMAP | — |
 
@@ -137,9 +146,12 @@ They are counted by the registry and excluded from execution by `implemented_det
 
 | Capability | Status | Session |
 |---|---|---|
-| Claude API client (`claude-opus-5`) | SCAFFOLDED | 3 |
-| Structured outputs (schema-validated) | SCAFFOLDED | 3 |
-| Fixture LLM client (offline) | SCAFFOLDED | 3 |
+| Claude API client (`claude-opus-5`) | SCAFFOLDED | 3 — written and unit-tested against a stub, **never executed against the API** |
+| Structured outputs (schema-validated) | **IMPLEMENTED** | 3 — no free-text parsing anywhere |
+| Fixture LLM client (offline) | **IMPLEMENTED** | 3 — a miss raises; there is no fallback path |
+| **Hand-authored LLM fixtures** | **SIMULATED** | 3 — ADR-0013. Not recorded from a model. |
+| Evidence gathering | **IMPLEMENTED** | 3 — via the `EvidenceSource` port over repositories; MCP in 4 |
+| Evidence citation gate | **IMPLEMENTED** | 3 — application check plus foreign keys |
 | Prompt caching | SCAFFOLDED | 7 |
 | **Deterministic pipeline-impact calculator** | **IMPLEMENTED** | 1 — [`analytics/pipeline_impact.py`](src/revenue_sentinel/analytics/pipeline_impact.py); 60 tests, exact to the cent |
 | **Deterministic intervention scoring** | SCAFFOLDED | 5 |
@@ -154,7 +166,7 @@ They are counted by the registry and excluded from execution by `implemented_det
 | Capability | Status | Session |
 |---|---|---|
 | Tool-call ledger | SCAFFOLDED | 4 |
-| Model-call ledger | SCAFFOLDED | 7 |
+| Model-call ledger | **Partial** | 3 writes rows (with `is_replay`); tokens, cache and cost in 7 |
 | Cost ledger (`NUMERIC(12,6)`) | SCAFFOLDED | 7 |
 | Budgets — run / incident / global | SCAFFOLDED | 7 |
 | Non-monetary ceilings | SCAFFOLDED | 7 |
