@@ -44,3 +44,46 @@ class CalculationError(RevenueSentinelError):
     Deliberately loud. `analytics/` produces the figures the product is judged on,
     so a nonsensical input raises rather than returning a plausible-looking zero.
     """
+
+
+class FixtureMissError(RevenueSentinelError):
+    """`DEMO_MODE=fixture` was asked for a response that has not been recorded.
+
+    Raised, never fallen back from. A silent fallback would turn an offline test into
+    a billable network call the first time a prompt changed -- quietly, in CI, and
+    possibly during a demo (ADR-0007).
+    """
+
+    def __init__(self, node_name: str, digest: str, expected_path: str) -> None:
+        self.node_name = node_name
+        self.digest = digest
+        self.expected_path = expected_path
+        super().__init__(
+            f"no recorded response for node {node_name!r} (digest {digest}). "
+            f"Expected: {expected_path}. Fixture mode does not fall back to a live "
+            f"call -- regenerate with `make record` if the prompt changed."
+        )
+
+
+class StructuredOutputError(RevenueSentinelError):
+    """Model output failed schema validation.
+
+    Distinct from a transport failure: the call succeeded and returned something we
+    refuse to use. There is no free-text parsing fallback (rule 4).
+    """
+
+
+class FabricatedCitationError(RevenueSentinelError):
+    """A hypothesis cited evidence that does not exist in workflow state.
+
+    The anti-hallucination gate. The run fails and nothing is persisted -- a
+    fabricated justification never reaches the database, let alone a screen.
+    """
+
+    def __init__(self, hypothesis_ref: str, unknown_refs: tuple[str, ...]) -> None:
+        self.hypothesis_ref = hypothesis_ref
+        self.unknown_refs = unknown_refs
+        super().__init__(
+            f"{hypothesis_ref} cites evidence that does not exist: "
+            f"{', '.join(sorted(unknown_refs))}"
+        )
