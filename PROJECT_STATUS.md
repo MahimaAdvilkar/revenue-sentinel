@@ -256,6 +256,24 @@ nothing, and exited 0. A target that silently succeeds while serving nothing is 
 one that fails. It now runs `python -m scripts.mcp_server`, which is what the transport
 tests drive.
 
+**CI caught two defects the local suite could not.** The transport-parity tests passed
+locally and failed on CI, and both causes were real rather than environmental flake.
+
+`stdio_client` does **not** forward the parent environment — it starts the server with a
+deliberately minimal one. Locally the child still found its configuration in the
+repository's `.env`; on CI, where configuration lives in environment variables and no
+`.env` exists, it died during startup with `ValidationError: database_url Field required`.
+The child's environment is now derived explicitly from the resolved `Settings`, so it is
+configured identically whichever source the parent read — and `ANTHROPIC_API_KEY` is
+deliberately **not** among the variables passed, so the offline guarantee does not depend
+on a developer's shell being clean.
+
+Second, and only visible once the first was fixed: **the subprocess had been reading the
+development database while `committed_scenario` seeded the test database.** The payloads
+matched because both had been seeded from the same deterministic seed — which made the
+parity assertion accidental rather than earned. The child is now pointed at the test
+database, so the fixture's data is the data it reads.
+
 **One assertion deliberately not written.** There is no stdio test for "a write with no
 policy engine is refused". The refusal does happen — the stdio server binds `policy=None` —
 but its client-visible shape was not verified, and asserting an unverified shape would be

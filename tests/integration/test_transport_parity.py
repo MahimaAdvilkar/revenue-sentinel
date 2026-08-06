@@ -13,12 +13,28 @@ The subprocess talks to the same PostgreSQL the test session does, so these read
 must be exercised against **committed** data. The seeded fixtures used elsewhere live
 inside a rolled-back transaction the subprocess cannot see, which is why this module
 commits its own scenario and cleans up afterwards.
+
+Two things about the child process are stated explicitly rather than inherited, because
+CI proved that inheriting them does not work:
+
+* **`stdio_client` does not forward the parent environment.** It starts the server with a
+  deliberately minimal one. On a developer machine the child still found its
+  configuration in the repository's `.env` file; on CI, where configuration lives in
+  environment variables and no `.env` exists, it died during startup with
+  `ValidationError: database_url Field required`. The child's environment is now derived
+  from the resolved `Settings`, so it is configured identically whichever source the
+  parent read.
+* **The child is pointed at the *test* database.** It previously used
+  `settings.database_url` -- the development database -- while `committed_scenario` seeded
+  the test database. The payloads matched only because both had been seeded from the same
+  deterministic seed, which made the parity assertion accidental rather than earned.
 """
 
 from __future__ import annotations
 
 import asyncio
 import json
+import os
 import sys
 from collections.abc import Iterator
 from typing import Any
@@ -30,7 +46,7 @@ from mcp.client.stdio import StdioServerParameters, stdio_client
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
-from revenue_sentinel.core.config import Settings
+from revenue_sentinel.core.config import PROJECT_ROOT, Settings
 from revenue_sentinel.db.models import gtm as gtm_orm
 from revenue_sentinel.db.seeding import seed_database
 from revenue_sentinel.governance.stub import StubPolicyEngine
@@ -72,9 +88,33 @@ def committed_scenario(engine: Engine) -> Iterator[None]:
         teardown.commit()
 
 
-async def _over_stdio(calls: list[tuple[str, dict[str, Any]]]) -> dict[str, Any]:
+def server_environment(database_url: str, settings: Settings) -> dict[str, str]:
+    """The child's configuration, stated rather than inherited.
+
+    Deliberately narrow. `ANTHROPIC_API_KEY` is **not** passed, so the server cannot make
+    a model call even on a developer machine whose environment holds a key -- the offline
+    guarantee does not depend on the developer's shell being clean.
+    """
+    return {
+        "PATH": os.environ.get("PATH", ""),
+        "DATABASE_URL": database_url,
+        "APP_ENV": settings.app_env,
+        "DEMO_MODE": settings.demo_mode,
+        "SEED": str(settings.seed),
+        "EVALUATION_TIMESTAMP": settings.evaluation_timestamp.isoformat(),
+    }
+
+
+async def _over_stdio(
+    calls: list[tuple[str, dict[str, Any]]], environment: dict[str, str]
+) -> dict[str, Any]:
     """One subprocess, one handshake, N tool calls."""
-    params = StdioServerParameters(command=sys.executable, args=["-m", "scripts.mcp_server"])
+    params = StdioServerParameters(
+        command=sys.executable,
+        args=["-m", "scripts.mcp_server"],
+        env=environment,
+        cwd=str(PROJECT_ROOT),
+    )
 
     async with (
         stdio_client(params) as (read_stream, write_stream),
@@ -99,19 +139,30 @@ async def _over_stdio(calls: list[tuple[str, dict[str, Any]]]) -> dict[str, Any]
         }
 
 
-def over_stdio(calls: list[tuple[str, dict[str, Any]]]) -> dict[str, Any]:
-    return asyncio.run(asyncio.wait_for(_over_stdio(calls), timeout=STDIO_TIMEOUT_SECONDS))
+def over_stdio(
+    calls: list[tuple[str, dict[str, Any]]], environment: dict[str, str]
+) -> dict[str, Any]:
+    return asyncio.run(
+        asyncio.wait_for(_over_stdio(calls, environment), timeout=STDIO_TIMEOUT_SECONDS)
+    )
 
 
 @pytest.fixture(scope="module")
-def stdio_session(committed_scenario: None) -> dict[str, Any]:
+def server_env(migrated_database_url: str, settings: Settings) -> dict[str, str]:
+    """Points the subprocess at the **test** database -- the one the fixture seeds."""
+    return server_environment(migrated_database_url, settings)
+
+
+@pytest.fixture(scope="module")
+def stdio_session(committed_scenario: None, server_env: dict[str, str]) -> dict[str, Any]:
     """A single real subprocess exchange, reused across the assertions below."""
     return over_stdio(
         [
             ("crm_get_account", {"account_ref": "ACC-1001"}),
             ("crm_get_opportunity", {"opportunity_ref": "OPP-2001"}),
             ("support_get_open_issues", {"account_ref": "ACC-1001"}),
-        ]
+        ],
+        server_env,
     )
 
 
@@ -195,8 +246,10 @@ def test_the_simulated_status_is_carried_over_the_wire(stdio_session: dict[str, 
         assert stdio_session["results"][tool_name]["payload"]["integration_status"] == "SIMULATED"
 
 
-def test_a_missing_entity_over_stdio_is_a_typed_error(committed_scenario: None) -> None:
-    exchange = over_stdio([("crm_get_account", {"account_ref": "ACC-9999"})])
+def test_a_missing_entity_over_stdio_is_a_typed_error(
+    committed_scenario: None, server_env: dict[str, str]
+) -> None:
+    exchange = over_stdio([("crm_get_account", {"account_ref": "ACC-9999"})], server_env)
     result = exchange["results"]["crm_get_account"]
 
     assert result["is_error"] is True
@@ -204,10 +257,13 @@ def test_a_missing_entity_over_stdio_is_a_typed_error(committed_scenario: None) 
     assert result["payload"]["error"]["retry"] is False
 
 
-def test_an_unknown_argument_is_rejected_over_stdio(committed_scenario: None) -> None:
+def test_an_unknown_argument_is_rejected_over_stdio(
+    committed_scenario: None, server_env: dict[str, str]
+) -> None:
     """Strictness is enforced by the server, not only advertised by it."""
     exchange = over_stdio(
-        [("crm_get_account", {"account_ref": "ACC-1001", "definitely_not_a_field": 1})]
+        [("crm_get_account", {"account_ref": "ACC-1001", "definitely_not_a_field": 1})],
+        server_env,
     )
     result = exchange["results"]["crm_get_account"]
 
