@@ -1,4 +1,19 @@
-"""`RepositoryEvidenceSource` -- the Session 3 implementation of the evidence port.
+"""`RepositoryEvidenceSource` -- **legacy; retained only as a test control.**
+
+Superseded in Session 4 by `mcp_evidence_source.McpEvidenceSource`, which the
+investigation graph now uses. This class survives for one reason: it is the control in
+`tests/integration/test_evidence_parity.py`, which asserts the two produce
+byte-equivalent canonical evidence.
+
+> **Known contract defect.** `get_email_activity` here counts *all* engagement events,
+> including `meeting_held`. The MCP contract separates email activity from
+> `engagement_get_meeting_activity`, and **the MCP shape is correct**. The difference
+> does not surface for `ACC-1001` (no meetings in the window), which is why parity
+> holds -- but do not treat this module as the reference shape.
+
+Original description follows.
+
+`RepositoryEvidenceSource` -- the Session 3 implementation of the evidence port.
 
 Reads the seeded GTM mirror through `db/` repositories. It lives here rather than in
 `agents/` because `agents/` may not import `db/` (boundary R5): the agent holds the

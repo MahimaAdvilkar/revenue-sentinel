@@ -35,9 +35,12 @@ from revenue_sentinel.domain.enums import SALES_TOUCH_TYPES, IncidentStatus, Wor
 from revenue_sentinel.domain.gtm import Account, Opportunity
 from revenue_sentinel.domain.incidents import Incident
 from revenue_sentinel.incidents.service import transition_incident
+from revenue_sentinel.integrations.simulated.behaviour import SimulatedBehaviour
 from revenue_sentinel.intelligence.factory import build_llm_client
-from revenue_sentinel.orchestration.evidence_source import RepositoryEvidenceSource
+from revenue_sentinel.mcp.client import InProcessMcpClient
+from revenue_sentinel.mcp.context import ToolContext, build_simulated_adapters
 from revenue_sentinel.orchestration.graph import GRAPH_VERSION, build_graph
+from revenue_sentinel.orchestration.mcp_evidence_source import McpEvidenceSource
 from revenue_sentinel.orchestration.nodes import IMPACT_NODE, NodeContext
 from revenue_sentinel.orchestration.persistence import PersistedInvestigation, persist_investigation
 from revenue_sentinel.orchestration.state import WorkflowState
@@ -176,9 +179,25 @@ def run_investigation(
     )
 
     recorder = TransitionRecorder(session=session, run_id=run.id, occurred_at=evaluated_at)
+
+    # Evidence comes through the GTM MCP server. The agents are unchanged -- this is a
+    # different implementation behind the same port (ADR-0004 commitment 1).
+    #
+    # `policy=None` is deliberate. The investigation graph is read-only, and every
+    # tool it calls is Tier 0. Binding no policy engine means a write tool invoked
+    # from this path would raise rather than execute, so the graph *cannot* perform a
+    # write even by accident -- and certainly not under the allow-everything stub.
+    tool_context = ToolContext(
+        session=session,
+        adapters=build_simulated_adapters(session, SimulatedBehaviour()),
+        occurred_at=evaluated_at,
+        node_name="collect_evidence",
+        run_id=run.id,
+        policy=None,
+    )
     context = NodeContext(
         llm=build_llm_client(settings),
-        evidence_source=RepositoryEvidenceSource(session),
+        evidence_source=McpEvidenceSource(InProcessMcpClient(tool_context), session),
         model_id=settings.model_default,
         effort=settings.model_effort_default,
     )
