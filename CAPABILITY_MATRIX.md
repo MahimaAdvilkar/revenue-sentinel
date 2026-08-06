@@ -1,6 +1,6 @@
 # Capability Matrix
 
-**Last updated:** 2026-08-04 — end of Session 3
+**Last updated:** 2026-08-05 — end of Session 4
 **Rule:** every capability in this repository carries exactly one of four statuses, and the
 status shown here matches what the code and the dashboard say (rules 5 and 19).
 
@@ -19,7 +19,8 @@ status shown here matches what the code and the dashboard say (rules 5 and 19).
 > **The event source is SIMULATED.** [`events/sources.py`](src/revenue_sentinel/events/sources.py)
 > replays the locally seeded GTM mirror as though an adapter had delivered it. It carries
 > `INGESTION_STATUS = "SIMULATED"`, stamped on every ingestion response. No external system
-> is connected. Real ports and adapters arrive in Session 4.
+> is connected. **Session 4 added real ports and adapters — and every adapter behind them is
+> still SIMULATED.** Ports being real does not make integrations real.
 >
 > **Eight detectors are registered; exactly one is implemented.** The other seven raise
 > `NotImplementedError` and are ROADMAP. A test asserts the count, so "eight detectors"
@@ -34,7 +35,28 @@ status shown here matches what the code and the dashboard say (rules 5 and 19).
 > against a stub but have never been executed against the API. The fixtures prove the
 > pipeline and the schemas; they do **not** prove the prompts work against a live model.
 >
-> **No MCP tool, no policy engine, no execution, no cost tracking, and no dashboard
+> **As of Session 4 the GTM MCP server is real.** All 15 tools are IMPLEMENTED with strict
+> schemas. **Both transports are IMPLEMENTED** — the in-process client the graph and tests
+> use, and a stdio server verified against a **real subprocess** (MCP handshake, JSON-RPC,
+> `tools/list`, a successful read, typed `NOT_FOUND` and `INVALID_ARGUMENTS`, and
+> `additionalProperties: false` as received over the wire). Both delegate to the same
+> `dispatcher.dispatch`, so they share one set of handlers by construction.
+>
+> **Every integration is still SIMULATED,** and every tool result carries
+> `integration_status = "SIMULATED"` — across both transports. An adapter module that fails
+> to declare the constant raises rather than defaulting.
+>
+> **The investigation graph now gathers evidence through MCP.** `McpEvidenceSource` replaced
+> `RepositoryEvidenceSource` behind the unchanged `EvidenceSource` port, and the evidence is
+> **byte-equivalent**: fixture digests are unchanged and `INC-001` still produces 6 evidence
+> items, 2 hypotheses, $108,000.00 weighted and $32,130.00 at risk.
+>
+> **The four write tools are registered but unwired from the graph.** No write has ever been
+> executed. `StubPolicyEngine` exists but was **never used to demonstrate a write**;
+> `run_investigation` binds **no policy engine at all**, so a write reached from the graph
+> raises instead of executing.
+>
+> **No policy engine, no approvals, no execution, no cost tracking, and no dashboard
 > exists.**
 
 ---
@@ -43,26 +65,50 @@ status shown here matches what the code and the dashboard say (rules 5 and 19).
 
 | Capability | Status | Notes |
 |---|---|---|
-| GTM MCP server (custom, 15 tools) | SCAFFOLDED | Designed in [`docs/mcp-design.md`](docs/mcp-design.md); built Session 4 |
-| CRM adapter | SCAFFOLDED → SIMULATED | Fixture-backed; real HubSpot/Salesforce is ROADMAP |
-| Product-usage adapter | SCAFFOLDED → SIMULATED | Real warehouse/Segment is ROADMAP |
-| Engagement adapter | SCAFFOLDED → SIMULATED | Real Gmail/Outlook is ROADMAP |
-| Support adapter | SCAFFOLDED → SIMULATED | Real Zendesk/Intercom is ROADMAP |
-| Enrichment adapter | SCAFFOLDED → SIMULATED | Real Clearbit/Apollo is ROADMAP |
-| Messaging adapter (drafts, Slack) | SCAFFOLDED → SIMULATED | Real Gmail drafts/Slack is ROADMAP |
-| **Sending email (as opposed to drafting)** | **NOT A CAPABILITY** | Tier 3 — deliberately not built. See [`docs/security-model.md`](docs/security-model.md) |
+| **MCP tool catalog (15 narrow tools)** | **IMPLEMENTED** | 4 — registry asserts the count; no `run_sql`, no `http_request` |
+| **15 strict MCP tools** | **IMPLEMENTED** | 4 — `additionalProperties: false` per tool, asserted in-process **and over the wire** |
+| **MCP dispatcher** | **IMPLEMENTED** | 4 — validate → policy gate (writes) → adapter → envelope → ledger, in one place |
+| **In-process MCP transport** | **IMPLEMENTED** | 4 — what the graph and the test suite use; calls `dispatcher.dispatch` directly |
+| **stdio MCP transport** | **IMPLEMENTED** | 4 — `make mcp`; verified against a **real subprocess**: handshake, JSON-RPC, `tools/list`, successful read, typed `NOT_FOUND` and `INVALID_ARGUMENTS`, strict schemas over the wire |
+| **Simulated adapters (6 ports)** | **SIMULATED** | 4 — all declare `INTEGRATION_STATUS = "SIMULATED"`; an undeclared module raises |
+| **Tool-call ledger** | **IMPLEMENTED** | 4 — a row for success, typed error, **and policy denial**; trace + span correlated |
+| **Policy gate on write tools** | **IMPLEMENTED** | 4 — 4 write tools; no engine bound → raises; a denied write never reaches its adapter |
+| **Write execution from the graph** | **NOT WIRED** | 4 — write tools registered, but `run_investigation` binds **no policy engine**, so a write raises rather than executes. Session 5/6 |
+| CRM adapter | **SIMULATED** | 4 — fixture-backed; real HubSpot/Salesforce is ROADMAP |
+| Product-usage adapter | **SIMULATED** | 4 — real warehouse/Segment is ROADMAP |
+| Engagement adapter | **SIMULATED** | 4 — real Gmail/Outlook is ROADMAP |
+| Support adapter | **SIMULATED** | 4 — real Zendesk/Intercom is ROADMAP |
+| Enrichment adapter | **SIMULATED** | 4 — real Clearbit/Apollo is ROADMAP |
+| Messaging adapter (drafts, Slack) | **SIMULATED** | 4 — real Gmail drafts/Slack is ROADMAP |
+| **Real vendor integrations** | **ROADMAP** | Nothing external is connected. No credentials exist |
+| **Sending email (as opposed to drafting)** | **NOT A CAPABILITY** | Tier 3 — deliberately not built. `MessagingPort` has **no send method**, and no `messaging_send_email` tool exists. See [`docs/security-model.md`](docs/security-model.md) |
 
 ### The 15 MCP tools
 
-All SCAFFOLDED as of Phase 1; all become SIMULATED on Session 4.
+**All 15 are IMPLEMENTED as of Session 4, backed by SIMULATED adapters.** The four write
+tools are marked **W**: they are registered and policy-gated, but **not wired into the
+investigation graph**, and none has ever been executed.
 
 `crm_search_accounts` · `crm_get_account` · `crm_get_opportunity` ·
-`crm_list_account_activities` · `crm_create_task` · `crm_update_opportunity` ·
+`crm_list_account_activities` · `crm_create_task` **(W)** · `crm_update_opportunity` **(W)** ·
 `product_get_usage_summary` · `engagement_get_email_activity` ·
 `engagement_get_meeting_activity` · `support_get_open_issues` ·
-`enrichment_get_company_profile` · `messaging_create_email_draft` ·
-`messaging_send_slack_approval` · `analytics_calculate_pipeline_impact` ·
+`enrichment_get_company_profile` · `messaging_create_email_draft` **(W)** ·
+`messaging_send_slack_approval` **(W)** · `analytics_calculate_pipeline_impact` ·
 `audit_write_event`
+
+### Typed error codes
+
+All seven are implemented and tested. `POLICY_DENIED` carries `retry=False,
+alternative_route=False` — an agent is told not to route around a refusal, and that is a
+tested property rather than prose.
+
+| Code | Producer today |
+|---|---|
+| `INVALID_ARGUMENTS` · `NOT_FOUND` · `ADAPTER_ERROR` | ✅ real, exercised by tests and over stdio |
+| `POLICY_DENIED` | ✅ real, from the gate |
+| `APPROVAL_REQUIRED` · `RATE_LIMITED` | Defined; producers arrive with the real policy engine and adapter throttles |
+| **`BUDGET_EXCEEDED`** | **Defined, but has no real producer until Session 7.** Nothing raises it today |
 
 ---
 
@@ -109,7 +155,7 @@ They are counted by the registry and excluded from execution by `implemented_det
 |---|---|---|---|
 | Signal Agent | Deterministic | **IMPLEMENTED** | 2 — runs upstream of the graph |
 | Investigation Planner | **LLM** | **IMPLEMENTED** (fixture-backed) | 3 |
-| Research Agent | **LLM** (source choice) | **IMPLEMENTED** (fixture-backed) | 3 |
+| Research Agent | **LLM** (source choice) | **IMPLEMENTED** (fixture-backed) | 3; gathers evidence **through MCP** as of 4 |
 | Revenue Analyst — hypotheses | **LLM** | **IMPLEMENTED** (fixture-backed) | 3 |
 | Revenue Analyst — impact | Deterministic | **IMPLEMENTED** | 1 (calculator), 3 (wired into the graph) |
 | Strategy Agent — draft | **LLM** | SCAFFOLDED | 5 |
@@ -133,9 +179,11 @@ They are counted by the registry and excluded from execution by `implemented_det
 
 | Capability | Status | Session |
 |---|---|---|
-| Deterministic policy engine | SCAFFOLDED | 5 |
-| Four-tier risk classification | SCAFFOLDED | 5 |
+| **Real policy engine** | SCAFFOLDED | 5 — **not built.** `StubPolicyEngine` (allow-all) and `DenyAllPolicyEngine` exist for tests only. **The stub was never used to demonstrate a write** |
+| **Policy gate at the tool boundary** | **IMPLEMENTED** | 4 — a write tool with no engine bound raises; a denied write never reaches its adapter |
+| Four-tier risk classification | SCAFFOLDED | 5 — tiers are declared per tool in the registry; the classifier is Session 5 |
 | Default-deny for unclassified actions | SCAFFOLDED | 5 |
+| **Approval flow** | SCAFFOLDED | 5 — `APPROVAL_REQUIRED` is a defined error code with no producer yet |
 | Approval requests with expiry | SCAFFOLDED | 5 |
 | Approval inbox (UI) | SCAFFOLDED | 9 |
 | Delegation / role-based approval | ROADMAP | — |
@@ -150,7 +198,8 @@ They are counted by the registry and excluded from execution by `implemented_det
 | Structured outputs (schema-validated) | **IMPLEMENTED** | 3 — no free-text parsing anywhere |
 | Fixture LLM client (offline) | **IMPLEMENTED** | 3 — a miss raises; there is no fallback path |
 | **Hand-authored LLM fixtures** | **SIMULATED** | 3 — ADR-0013. Not recorded from a model. |
-| Evidence gathering | **IMPLEMENTED** | 3 — via the `EvidenceSource` port over repositories; MCP in 4 |
+| **MCP-backed evidence retrieval** | **IMPLEMENTED** | 4 — `McpEvidenceSource` is what `run_investigation` uses. The `EvidenceSource` port did not change |
+| **Evidence parity (MCP vs. repository)** | **IMPLEMENTED** | 4 — **byte-equivalent**; fixture digests unchanged. `RepositoryEvidenceSource` is retained **only** as the parity-test control and is legacy |
 | Evidence citation gate | **IMPLEMENTED** | 3 — application check plus foreign keys |
 | Prompt caching | SCAFFOLDED | 7 |
 | **Deterministic pipeline-impact calculator** | **IMPLEMENTED** | 1 — [`analytics/pipeline_impact.py`](src/revenue_sentinel/analytics/pipeline_impact.py); 60 tests, exact to the cent |
@@ -165,9 +214,12 @@ They are counted by the registry and excluded from execution by `implemented_det
 
 | Capability | Status | Session |
 |---|---|---|
-| Tool-call ledger | SCAFFOLDED | 4 |
+| **Tool-call ledger** | **IMPLEMENTED** | 4 — success, typed error, and policy denial all write a row; trace and span correlated |
 | Model-call ledger | **Partial** | 3 writes rows (with `is_replay`); tokens, cache and cost in 7 |
 | Cost ledger (`NUMERIC(12,6)`) | SCAFFOLDED | 7 |
+| **Cost-governance enforcement** | SCAFFOLDED | 7 — **nothing refuses a call on cost today** |
+| **`BUDGET_EXCEEDED` producer** | SCAFFOLDED | 7 — the error code exists; no code path raises it |
+| **Retry engine** | SCAFFOLDED | 6 — `ADAPTER_ERROR` and `RATE_LIMITED` declare `retry=True`, but **no retry loop is implemented**; the caller fails |
 | Budgets — run / incident / global | SCAFFOLDED | 7 |
 | Non-monetary ceilings | SCAFFOLDED | 7 |
 | Model routing per call site | SCAFFOLDED | 7 |
@@ -195,6 +247,7 @@ They are counted by the registry and excluded from execution by `implemented_det
 | Cost center | SCAFFOLDED | 10 |
 | Evaluation center | SCAFFOLDED | 10 |
 | Integration catalog | SCAFFOLDED | 10 |
+| **Frontend MCP views (tool catalog, tool-call timeline)** | SCAFFOLDED | 9–10 — the ledger rows exist; nothing renders them |
 | Authentication | ROADMAP | — |
 | Multi-tenancy | ROADMAP | — |
 
@@ -225,7 +278,7 @@ They are counted by the registry and excluded from execution by `implemented_det
 | Alembic migrations | **IMPLEMENTED** — `0001` baseline (29 tables, 26 enum types), `0002` sequence + unique; every downgrade tested |
 | Deterministic seeding | **IMPLEMENTED** — 92 rows, byte-identical per seed, idempotent |
 | GitHub Actions CI | **IMPLEMENTED** (full matrix Session 10) — every local gate runs on push and PR |
-| Offline fixture demo mode | SCAFFOLDED (Session 3) |
+| Offline fixture demo mode | **IMPLEMENTED** (Session 3) — a full run completes with `socket.socket` refusing; a fixture miss raises and persists nothing. The fixtures themselves are **SIMULATED** (hand-authored, ADR-0013) |
 | Cloud deployment | ROADMAP — requires approval (rule 20) |
 | Message broker | ROADMAP — see ADR-0006 |
 

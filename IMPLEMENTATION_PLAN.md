@@ -160,13 +160,23 @@ session. No strategy. No policy. No execution.
 
 ---
 
-## Session 4 — GTM MCP server
+## Session 4 — GTM MCP server ✅ COMPLETE
 
 **Objective.** Replace direct repository access with the real MCP tool layer.
 
-**Files / modules** — `mcp/server.py`, `mcp/tools/*.py` (15 tools),
-`integrations/ports/*.py`, `integrations/simulated/*.py`, `mcp/client.py` (stdio +
-in-process)
+**Outcome.** All nine acceptance criteria met; **730 tests pass (182 new)**. ADR-0014 added
+for the sync/async boundary. All 15 tools implemented; **both transports IMPLEMENTED** —
+stdio verified against a real subprocess. Evidence parity is **byte-equivalent** and fixture
+digests are unchanged. Every integration remains **SIMULATED**. The four write tools are
+registered but **unwired from the graph**, and none has been executed. Deviations — MCP SDK
+2.0 rather than 1.1, a latent `RepositoryEvidenceSource` contract defect, and a broken
+`make mcp` target — are recorded in [`PROJECT_STATUS.md`](PROJECT_STATUS.md).
+
+**Files / modules** — `mcp/` (errors, envelope, schemas, registry, gate, dispatcher, ledger,
+context), `mcp/tools/*.py` (15 tools), `mcp/server.py` + `scripts/mcp_server.py` (stdio),
+`mcp/client.py` (in-process + `AsyncBridge`), `integrations/ports/*.py`,
+`integrations/simulated/*.py`, `integrations/status.py`, `governance/stub.py`,
+`orchestration/mcp_evidence_source.py`
 
 **Acceptance criteria**
 1. All 15 tools implemented with strict JSON Schema (`additionalProperties: false`)
@@ -183,13 +193,26 @@ in-process)
 without a decision; adapters return deterministic fixtures; transient-failure retry;
 in-process and stdio produce identical results.
 
-**Demo result.** The stdio MCP server running; `make investigate` producing the same output
-as Session 3, now sourced through MCP tool calls visible in `tool_calls`.
+**Demo result.** ✅ `make mcp` runs the stdio MCP server; `make investigate` produces the
+same output as Session 3 — 6 evidence items, 2 hypotheses, $108,000.00 weighted and
+$32,130.00 at risk — now sourced through MCP tool calls visible in `tool_calls`.
 
-**Risks.** Fifteen tools is the largest single-session surface in the plan. MCP transport
-issues eating time. Over-broad tool arguments creeping in under time pressure.
+**Risks — as they landed.** Fifteen tools was indeed the largest surface, and it held. MCP
+transport did eat time: the SDK resolved to 2.0 rather than 1.1, which moved several
+attribute names and made the low-level `Server` the right choice over the ergonomic
+wrapper. Tool arguments did not broaden — every one is a frozen Pydantic model with
+`extra="forbid"`.
 
-**Must remain unfinished.** Real policy engine (stub only). No strategy. No execution.
+**Remained unfinished, by design.** Real policy engine (stubs only, and **the stub was
+never used to demonstrate a write**). Write tools registered but **unwired from the graph**.
+`BUDGET_EXCEEDED` defined with **no producer until Session 7**. No `messaging_send_email`,
+and no send method on `MessagingPort`. No strategy, execution, retries, cost governance, or
+frontend. **No real credentials, external integrations, paid calls, or live LLM calls —
+$0 spent.**
+
+**Open question carried to Session 5.** The client-visible shape of a write refused over
+stdio for want of a policy engine is not yet pinned by a subprocess test. The dispatcher-level
+guarantee is proven in-process.
 
 ---
 

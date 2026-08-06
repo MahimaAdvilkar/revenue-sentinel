@@ -10,18 +10,34 @@ cost, and evaluates its own behaviour.
 
 ## ⚠️ Current status — read this first
 
-> **Session 3 of 11 is complete: detection and investigation run, offline and for free.**
+> **Session 4 of 11 is complete: detection and investigation run through a real MCP server,
+> offline and for free.**
 >
 > `make investigate INCIDENT=INC-001` produces a plan, six evidence items, two hypotheses
 > each citing real evidence, and **$108,000 weighted / $32,130 at risk** — with no API key
-> and no network. Verified by 548 passing tests.
+> and no network. Verified by **730 passing tests**.
 >
-> **Two things are SIMULATED and labelled as such.** The event source replays the locally
-> seeded GTM mirror, not an external system. And the LLM fixtures are **hand-authored, not
+> **The GTM MCP server is real.** 15 narrow, strictly-typed tools; no `run_sql`, no
+> `http_request`. Two transports, both IMPLEMENTED: the in-process client the graph and
+> tests use, and a spec-compliant **stdio server** (`make mcp`) driven by tests as a **real
+> subprocess** — MCP handshake, JSON-RPC, `tools/list`, a successful read, typed
+> `NOT_FOUND` and `INVALID_ARGUMENTS`, and `additionalProperties: false` verified as
+> received over the wire. Both delegate to the same dispatcher, so they cannot drift.
+>
+> **Three things are SIMULATED and labelled as such.** The event source replays the locally
+> seeded GTM mirror, not an external system. The LLM fixtures are **hand-authored, not
 > recorded from a model** (ADR-0013) — they prove the pipeline and the schemas, not that
-> the prompts work against a live model. **This system has never made an API call.**
+> the prompts work against a live model. And **every integration behind the MCP server is
+> simulated**: each adapter declares `INTEGRATION_STATUS = "SIMULATED"`, every tool result
+> carries it, and an adapter that fails to declare one raises rather than defaulting.
+> **This system has never made an API call.**
 >
-> What does not exist yet: **the MCP server, the strategy agent, the policy engine,
+> **It cannot write to anything.** The four write tools are registered and policy-gated but
+> **not wired into the graph**, and none has ever been executed — the investigation binds no
+> policy engine at all, so a write from that path raises. There is no `messaging_send_email`
+> tool and no send method on the messaging port.
+>
+> What does not exist yet: **the real policy engine, approvals, the strategy agent,
 > execution, cost governance, and the dashboard.** `make demo` does not work. See
 > [`PROJECT_STATUS.md`](PROJECT_STATUS.md) for the precise state.
 >
@@ -149,8 +165,9 @@ make migrate            # 29 tables, 26 native enum types
 make seed               # 92 deterministic rows, all is_simulated = true
 make ingest             # detect signals and open incidents (SIMULATED source feed)
 make investigate        # run the investigation graph offline (INCIDENT=INC-001)
-make check              # lint, format, mypy --strict, boundaries, 548 tests
+make check              # lint, format, mypy --strict, boundaries, 730 tests
 make api                # then: curl localhost:8000/incidents/INC-001
+make mcp                # the GTM MCP server over stdio (SIMULATED adapters)
 ```
 
 Confirm the golden scenario landed:
@@ -162,8 +179,8 @@ docker compose exec postgres psql -U sentinel -d revenue_sentinel \
 ```
 
 **Not yet functional** — these `Makefile` targets are declared and become real later:
-`make mcp` (Session 4), `make demo` (6), `make eval` (8), `make web` (9). `make record`
-works but makes billable API calls and **has never been run**.
+`make demo` (Session 6), `make eval` (8), `make web` (9). `make record` works but makes
+billable API calls and **has never been run**.
 
 **Prerequisites:** [`uv`](https://docs.astral.sh/uv/), Docker with Compose, and Node 22+
 with pnpm (Session 9 only). `uv` installs Python 3.12.3 itself, so a system Python of the
