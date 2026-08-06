@@ -22,8 +22,12 @@ dependencies = [
     "psycopg[binary]>=3.2",
     # Orchestration — see ADR-0002: orchestration only, not the architecture
     "langgraph>=0.2.50",
-    # MCP — the custom GTM server
-    "mcp>=1.1",
+    # MCP — the custom GTM server.
+    # Pinned to 2.0.x deliberately. The 1.x API this project was designed against no
+    # longer exists (no `mcp.server.fastmcp`), and 2.0 renamed result fields to
+    # snake_case. A narrow range means an incompatible release fails at install time
+    # rather than at runtime. Widen only after testing against the new version.
+    "mcp>=2.0.0,<2.1.0",
     # LLM
     "anthropic>=0.40",
     # Observability

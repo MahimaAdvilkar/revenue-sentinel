@@ -1746,7 +1746,7 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.28" },
     { name = "import-linter", marker = "extra == 'dev'", specifier = ">=2.1" },
     { name = "langgraph", specifier = ">=0.2.50" },
-    { name = "mcp", specifier = ">=1.1" },
+    { name = "mcp", specifier = ">=2.0.0,<2.1.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.13" },
     { name = "opentelemetry-api", specifier = ">=1.28" },
     { name = "opentelemetry-sdk", specifier = ">=1.28" },

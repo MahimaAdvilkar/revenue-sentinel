@@ -120,8 +120,8 @@ web:  ## [S9] Run the Next.js dashboard on :3000
 	cd apps/web && pnpm dev
 
 .PHONY: mcp
-mcp:  ## [S4] Run the GTM MCP server over stdio
-	$(UV) run python -m revenue_sentinel.mcp.server
+mcp:  ## Run the GTM MCP server over stdio (SIMULATED adapters)
+	$(UV) run python -m scripts.mcp_server
 
 # ---------------------------------------------------------------------------
 # Demo — offline by default (ADR-0007)

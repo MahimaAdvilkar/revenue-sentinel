@@ -23,6 +23,7 @@ too — an ADR is where tribal knowledge goes to become reviewable.
 | [0011](0011-incident-severity-bands.md) | Incident severity is banded weighted pipeline value | Accepted | 2026-08-03 |
 | [0012](0012-in-memory-checkpointer.md) | `InMemorySaver` in Session 3; durable checkpointer in Session 6 | Accepted | 2026-08-04 |
 | [0013](0013-hand-authored-llm-fixtures.md) | Hand-authored LLM fixtures as the Session 3 bootstrap | Accepted | 2026-08-04 |
+| [0014](0014-sync-async-mcp-boundary.md) | The sync/async boundary sits inside `mcp/client.py` | Accepted | 2026-08-05 |
 
 ---
 
