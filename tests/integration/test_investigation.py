@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import socket
 import sys
-from datetime import datetime
 from decimal import Decimal
 from itertools import pairwise
 from typing import Any
@@ -28,7 +27,6 @@ from revenue_sentinel.db.models import investigation as inv_orm
 from revenue_sentinel.db.models import observability as obs_orm
 from revenue_sentinel.db.models import workflow as workflow_orm
 from revenue_sentinel.domain.enums import ComputedBy, IncidentStatus, TrustLevel, WorkflowStatus
-from revenue_sentinel.events.pipeline import run_ingestion_cycle
 from revenue_sentinel.intelligence.fixture_client import FIXTURE_STOP_REASON
 from revenue_sentinel.orchestration import runner
 from revenue_sentinel.orchestration.nodes import NODE_SEQUENCE
@@ -40,22 +38,17 @@ from revenue_sentinel.orchestration.transitions import GRAPH_ENTRY, GRAPH_EXIT_N
 
 EXPECTED_EVIDENCE_ITEMS = 6
 EXPECTED_HYPOTHESES = 2
-EXPECTED_TRANSITIONS = 5
-EXPECTED_MODEL_CALLS = 3
+EXPECTED_TRANSITIONS = 7
+"""Graph entry plus one per node. Was 5 in Session 3; the graph gained
+`draft_interventions` and `evaluate_policy` in Session 5."""
+
+EXPECTED_MODEL_CALLS = 4
+"""Three LLM-backed nodes in Session 3, four since the strategy agent landed.
+`calculate_impact` and `evaluate_policy` are deterministic and record none."""
 
 
-@pytest.fixture
-def detected(
-    seeded_session: Session, settings: Settings, evaluation_timestamp: datetime
-) -> Session:
-    """A seeded database with INC-001 open and triaged."""
-    run_ingestion_cycle(seeded_session, evaluated_at=evaluation_timestamp, settings=settings)
-    return seeded_session
-
-
-@pytest.fixture
-def investigated(detected: Session, settings: Settings) -> runner.InvestigationOutcome:
-    return run_investigation(detected, "INC-001", settings=settings)
+# `detected` and `investigated` live in `conftest.py` -- test_governance.py asserts
+# against the same golden run.
 
 
 # ---------------------------------------------------------------------------
@@ -121,7 +114,7 @@ def test_the_run_is_recorded_as_completed(
 
     assert run is not None
     assert run.status is WorkflowStatus.COMPLETED
-    assert run.graph_version == "investigation/v1"
+    assert run.graph_version == "investigation/v2"
     assert run.ended_at is not None
 
 

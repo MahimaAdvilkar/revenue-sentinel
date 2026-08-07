@@ -19,7 +19,9 @@ from revenue_sentinel.core.config import PROJECT_ROOT
 from revenue_sentinel.db.models import Base
 
 EXPECTED_TABLES = 29
-EXPECTED_ENUM_TYPES = 26
+EXPECTED_ENUM_TYPES = 27
+"""26 through Session 4. Migration 0004 added `proposed_action`, so an intervention can
+record a proposal the policy layer refused."""
 
 
 def _alembic(command: list[str], url: str) -> subprocess.CompletedProcess[str]:
