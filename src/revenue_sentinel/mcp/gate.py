@@ -21,7 +21,7 @@ from typing import Protocol, runtime_checkable
 
 from revenue_sentinel.core.types import JSONObject
 from revenue_sentinel.domain.enums import PolicyDecision, RiskTier
-from revenue_sentinel.governance.stub import PolicyOutcome
+from revenue_sentinel.governance.outcomes import PolicyOutcome
 from revenue_sentinel.mcp.errors import ToolErrorCode, ToolFailureError
 
 

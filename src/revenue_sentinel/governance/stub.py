@@ -1,4 +1,13 @@
-"""A stand-in policy engine for Session 4. **This is not the policy engine.**
+"""Stand-in policy engines. **Superseded in Session 5; kept for tests only.**
+
+> `policy_engine.DeterministicPolicyEngine` is the real one. These two remain because
+> a test that wants an unconditional yes or an unconditional no should say so directly
+> rather than construct rule inputs that happen to produce one. Neither is bound
+> anywhere in `src/` or `scripts/`, and a test asserts that.
+
+Original description follows.
+
+A stand-in policy engine for Session 4. **This is not the policy engine.**
 
 It returns ALLOW for everything and exists only so the *mechanism* can be built and
 tested a session before the rules are: a write tool cannot reach its adapter without a
@@ -15,24 +24,13 @@ system claims to prevent.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Final
 
 from revenue_sentinel.core.types import JSONObject
 from revenue_sentinel.domain.enums import PolicyDecision, RiskTier
+from revenue_sentinel.governance.outcomes import PolicyOutcome
 
 STUB_POLICY_VERSION: Final = "stub/session-4"
-
-
-@dataclass(frozen=True, slots=True)
-class PolicyOutcome:
-    """A decision about one tool invocation."""
-
-    decision: PolicyDecision
-    risk_tier: RiskTier
-    policy_version: str
-    matched_rules: tuple[str, ...]
-    reason: str
 
 
 class StubPolicyEngine:
