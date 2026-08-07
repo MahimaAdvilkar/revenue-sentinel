@@ -19,6 +19,7 @@ the process exiting.
 
 from __future__ import annotations
 
+import itertools
 import time
 from typing import Protocol, TypedDict
 
@@ -33,13 +34,19 @@ from revenue_sentinel.orchestration.nodes import (
     HYPOTHESES_NODE,
     IMPACT_NODE,
     NODE_FUNCTIONS,
+    NODE_SEQUENCE,
     PLAN_NODE,
+    POLICY_NODE,
+    STRATEGY_NODE,
     NodeContext,
 )
 from revenue_sentinel.orchestration.state import WorkflowState
 from revenue_sentinel.orchestration.transitions import GRAPH_ENTRY, TransitionRecorder
 
-GRAPH_VERSION = "investigation/v1"
+GRAPH_VERSION = "investigation/v2"
+"""Bumped in Session 5: the graph gained `draft_interventions` and `evaluate_policy`.
+A run recorded under `v1` had four nodes, and `workflow_runs.graph_version` is what
+tells a reader which shape they are looking at."""
 
 # Which agent each node belongs to, for `agent_decisions.agent_name`.
 _AGENT_BY_NODE = {
@@ -47,6 +54,8 @@ _AGENT_BY_NODE = {
     EVIDENCE_NODE: "research_agent",
     HYPOTHESES_NODE: "revenue_analyst",
     IMPACT_NODE: "revenue_analyst",
+    STRATEGY_NODE: "strategy_agent",
+    POLICY_NODE: "policy_and_risk_agent",
 }
 
 
@@ -126,18 +135,19 @@ def _instrument(
 def build_graph(
     session: Session, recorder: TransitionRecorder, context: NodeContext
 ) -> CompiledStateGraph[GraphState, None, GraphState, GraphState]:
-    """Wire the four nodes into a linear graph and compile it."""
+    """Wire the six nodes into a linear graph and compile it."""
     builder = StateGraph(GraphState)
 
-    order = (PLAN_NODE, EVIDENCE_NODE, HYPOTHESES_NODE, IMPACT_NODE)
-    for index, node_name in enumerate(order):
-        previous = order[index - 1] if index > 0 else None
+    # `NODE_SEQUENCE` is the single definition of the order. Edges are derived from
+    # it rather than listed again, so a node added there cannot be silently left
+    # unwired here.
+    for index, node_name in enumerate(NODE_SEQUENCE):
+        previous = NODE_SEQUENCE[index - 1] if index > 0 else None
         builder.add_node(node_name, _instrument(node_name, session, recorder, context, previous))
 
-    builder.add_edge(START, PLAN_NODE)
-    builder.add_edge(PLAN_NODE, EVIDENCE_NODE)
-    builder.add_edge(EVIDENCE_NODE, HYPOTHESES_NODE)
-    builder.add_edge(HYPOTHESES_NODE, IMPACT_NODE)
-    builder.add_edge(IMPACT_NODE, END)
+    builder.add_edge(START, NODE_SEQUENCE[0])
+    for earlier, later in itertools.pairwise(NODE_SEQUENCE):
+        builder.add_edge(earlier, later)
+    builder.add_edge(NODE_SEQUENCE[-1], END)
 
     return builder.compile(checkpointer=InMemorySaver())

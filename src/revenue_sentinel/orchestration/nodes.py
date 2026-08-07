@@ -19,18 +19,29 @@ from decimal import Decimal
 
 from pydantic import BaseModel
 
-from revenue_sentinel.agents import analyst, planner, researcher
+from revenue_sentinel.agents import analyst, planner, policy_agent, researcher, strategist
 from revenue_sentinel.agents.ports import EvidenceSource
+from revenue_sentinel.core.ids import hypothesis_ref
 from revenue_sentinel.core.types import JSONObject
 from revenue_sentinel.intelligence.ports import LLMClient, LLMResponse
+from revenue_sentinel.intelligence.prompts import render_incident_context
 from revenue_sentinel.orchestration.state import WorkflowState
 
 PLAN_NODE = "plan_investigation"
 EVIDENCE_NODE = "collect_evidence"
 HYPOTHESES_NODE = "generate_hypotheses"
 IMPACT_NODE = "calculate_impact"
+STRATEGY_NODE = "draft_interventions"
+POLICY_NODE = "evaluate_policy"
 
-NODE_SEQUENCE = (PLAN_NODE, EVIDENCE_NODE, HYPOTHESES_NODE, IMPACT_NODE)
+NODE_SEQUENCE = (
+    PLAN_NODE,
+    EVIDENCE_NODE,
+    HYPOTHESES_NODE,
+    IMPACT_NODE,
+    STRATEGY_NODE,
+    POLICY_NODE,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -113,9 +124,58 @@ def calculate_impact(state: WorkflowState, context: NodeContext) -> NodeResult:
     return NodeResult(state.with_impact(impact), None)
 
 
+def draft_interventions(state: WorkflowState, context: NodeContext) -> NodeResult:
+    """The model proposes; `analytics/` ranks. Neither happens in this body."""
+    if state.hypotheses is None or state.impact is None:
+        raise ValueError("draft_interventions requires hypotheses and an impact assessment")
+
+    response = strategist.draft_interventions(
+        incident_block=render_incident_context(
+            incident_ref=state.incident.incident_ref,
+            incident_type=state.incident.incident_type.value,
+            severity=state.incident.severity.value,
+            account_name=state.account.name,
+            opportunity_ref=state.opportunity.opportunity_ref,
+            opportunity_name=state.opportunity.name,
+            stage=state.opportunity.stage.value,
+            amount=str(state.opportunity.amount),
+            currency=state.opportunity.currency,
+            days_inactive=state.days_inactive,
+            usage_growth=state.usage_growth,
+        ),
+        hypotheses=tuple(
+            (hypothesis_ref(draft.rank), draft.statement, draft.cites)
+            for draft in sorted(state.hypotheses.hypotheses, key=lambda item: item.rank)
+        ),
+        llm=context.llm,
+        model_id=context.model_id,
+        effort=context.effort,
+    )
+    ranked = strategist.rank_drafts(
+        response.output,
+        at_risk_value=state.impact.at_risk_value,
+        weighted_value=state.impact.weighted_value,
+    )
+    return NodeResult(state.with_interventions(ranked), response)
+
+
+def evaluate_policy(state: WorkflowState, context: NodeContext) -> NodeResult:
+    """The second node with no model, and the one that decides nothing may happen yet.
+
+    Every intervention gets exactly one decision. **No decision causes an action** --
+    Session 5 records; Session 6 executes.
+    """
+    decisions = policy_agent.evaluate_interventions(
+        tuple(item.draft for item in state.interventions)
+    )
+    return NodeResult(state.with_policy_decisions(decisions), None)
+
+
 NODE_FUNCTIONS = {
     PLAN_NODE: plan_investigation,
     EVIDENCE_NODE: collect_evidence,
     HYPOTHESES_NODE: generate_hypotheses,
     IMPACT_NODE: calculate_impact,
+    STRATEGY_NODE: draft_interventions,
+    POLICY_NODE: evaluate_policy,
 }

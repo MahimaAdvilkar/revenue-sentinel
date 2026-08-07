@@ -2,10 +2,11 @@
 
 Explicitly typed, no `dict[str, Any]` anywhere (`docs/agent-architecture.md` §3).
 
-Fields for `interventions`, `policy_decisions`, `actions`, and `evaluation_result`
-are **deliberately absent**. They arrive in Sessions 5 and 6. A typed field that
-nothing writes is a claim the graph does something it does not, and the state model is
-the first place a reader looks to find out what the workflow actually does.
+`interventions` and `policy_decisions` arrived in Session 5. Fields for `actions` and
+`evaluation_result` are still **deliberately absent** -- they arrive in Sessions 6 and
+8. A typed field that nothing writes is a claim the graph does something it does not,
+and the state model is the first place a reader looks to find out what the workflow
+actually does. There is no `actions` field because nothing executes.
 
 `state_digest` hashes a canonical serialisation, so two runs over identical inputs
 produce identical digests and a transition's recorded digest is checkable rather than
@@ -20,7 +21,9 @@ from dataclasses import dataclass, field, replace
 from datetime import datetime
 from uuid import UUID
 
+from revenue_sentinel.agents.policy_agent import EvaluatedIntervention
 from revenue_sentinel.agents.researcher import GatheredEvidence
+from revenue_sentinel.agents.strategist import RankedIntervention
 from revenue_sentinel.analytics.pipeline_impact import PipelineImpact
 from revenue_sentinel.domain.gtm import Account, Opportunity
 from revenue_sentinel.domain.incidents import Incident
@@ -48,9 +51,17 @@ class WorkflowState:
     evidence: tuple[GatheredEvidence, ...] = field(default_factory=tuple)
     hypotheses: HypothesisSet | None = None
     impact: PipelineImpact | None = None
+    interventions: tuple[RankedIntervention, ...] = field(default_factory=tuple)
+    policy_decisions: tuple[EvaluatedIntervention, ...] = field(default_factory=tuple)
 
     def with_plan(self, plan: InvestigationPlan) -> WorkflowState:
         return replace(self, plan=plan)
+
+    def with_interventions(self, interventions: tuple[RankedIntervention, ...]) -> WorkflowState:
+        return replace(self, interventions=interventions)
+
+    def with_policy_decisions(self, decisions: tuple[EvaluatedIntervention, ...]) -> WorkflowState:
+        return replace(self, policy_decisions=decisions)
 
     def with_evidence(self, evidence: tuple[GatheredEvidence, ...]) -> WorkflowState:
         return replace(self, evidence=evidence)
@@ -91,6 +102,24 @@ class WorkflowState:
             ],
             "hypotheses": (self.hypotheses.model_dump(mode="json") if self.hypotheses else None),
             "impact": self.impact.model_dump(mode="json") if self.impact else None,
+            "interventions": [
+                {
+                    "title": item.draft.title,
+                    "action": item.draft.action.value,
+                    "expected_value": str(item.score.expected_value),
+                    "composite_score": str(item.score.composite_score),
+                }
+                for item in self.interventions
+            ],
+            "policy_decisions": [
+                {
+                    "action": item.draft.action.value,
+                    "decision": item.outcome.decision.value,
+                    "risk_tier": int(item.outcome.risk_tier),
+                    "matched_rules": list(item.outcome.matched_rules),
+                }
+                for item in self.policy_decisions
+            ],
         }
         canonical = json.dumps(snapshot, sort_keys=True, separators=(",", ":"), default=str)
         return hashlib.sha256(canonical.encode("utf-8")).hexdigest()

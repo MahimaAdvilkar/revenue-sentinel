@@ -27,12 +27,15 @@ from uuid import UUID
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from revenue_sentinel.agents.policy_agent import POLICY_ACTOR
 from revenue_sentinel.analytics.pipeline_impact import PipelineImpact
 from revenue_sentinel.core.ids import hypothesis_ref, new_id
 from revenue_sentinel.core.types import JSONObject
+from revenue_sentinel.db.models import governance as gov_orm
 from revenue_sentinel.db.models import investigation as orm
 from revenue_sentinel.db.models import observability as obs_orm
-from revenue_sentinel.domain.enums import ComputedBy, TrustLevel
+from revenue_sentinel.domain.enums import ComputedBy, PolicyDecision, TrustLevel
+from revenue_sentinel.governance.approvals import create_approval_request
 from revenue_sentinel.intelligence.ports import LLMResponse
 from revenue_sentinel.orchestration.state import WorkflowState
 
@@ -59,6 +62,9 @@ class PersistedInvestigation:
     hypotheses: int
     citations: int
     impact_assessment_id: UUID
+    interventions: int = 0
+    policy_evaluations: int = 0
+    approval_requests: int = 0
 
 
 def record_model_call(
@@ -182,12 +188,85 @@ def persist_investigation(
     session.flush()
 
     assessment = _persist_impact(session, state.run_id, state.impact)
+    governance_counts = _persist_governance(session, state, occurred_at=occurred_at)
+
     return PersistedInvestigation(
         evidence_items=len(state.evidence),
         hypotheses=len(state.hypotheses.hypotheses),
         citations=citations,
         impact_assessment_id=assessment.id,
+        interventions=governance_counts[0],
+        policy_evaluations=governance_counts[1],
+        approval_requests=governance_counts[2],
     )
+
+
+def _persist_governance(
+    session: Session, state: WorkflowState, *, occurred_at: datetime
+) -> tuple[int, int, int]:
+    """Interventions, their policy evaluations, and any approval requests.
+
+    **Every intervention is persisted, including the denied one.** A refusal that left
+    no row would be indistinguishable from a proposal that was never made, and the
+    ability to answer "what did it want to do, and what stopped it?" is most of what
+    the governance tables are for.
+
+    Ordering matters and is not incidental: `policy_evaluations` has a unique foreign
+    key to `interventions`, and `approval_requests` one to `policy_evaluations`, so the
+    chain from action to authorisation is a schema guarantee rather than a convention.
+
+    **Nothing here executes anything.** No `action_records` row is written, because
+    nothing acted -- that is Session 6.
+    """
+    decisions = {item.draft.title: item.outcome for item in state.policy_decisions}
+    interventions = evaluations = approvals = 0
+
+    for rank, ranked in enumerate(state.interventions, start=1):
+        row = orm.Intervention(
+            id=new_id(),
+            run_id=state.run_id,
+            rank=rank,
+            title=ranked.draft.title,
+            action_type=ranked.draft.action,
+            rationale=ranked.draft.rationale,
+            expected_value=ranked.score.expected_value,
+            effort_score=ranked.score.effort_score,
+            risk_score=ranked.score.risk_score,
+            composite_score=ranked.score.composite_score,
+        )
+        session.add(row)
+        session.flush()
+        interventions += 1
+
+        outcome = decisions.get(ranked.draft.title)
+        if outcome is None:
+            continue
+
+        evaluation = gov_orm.PolicyEvaluation(
+            id=new_id(),
+            intervention_id=row.id,
+            policy_version=outcome.policy_version,
+            risk_tier=int(outcome.risk_tier),
+            decision=outcome.decision,
+            matched_rules=list(outcome.matched_rules),
+            reason=outcome.reason,
+            evaluated_at=occurred_at,
+        )
+        session.add(evaluation)
+        session.flush()
+        evaluations += 1
+
+        if outcome.decision is PolicyDecision.REQUIRE_APPROVAL:
+            create_approval_request(
+                session,
+                policy_evaluation_id=evaluation.id,
+                run_id=state.run_id,
+                requested_by=POLICY_ACTOR,
+                occurred_at=occurred_at,
+            )
+            approvals += 1
+
+    return interventions, evaluations, approvals
 
 
 def _persist_impact(session: Session, run_id: UUID, impact: PipelineImpact) -> orm.ImpactAssessment:

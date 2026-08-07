@@ -139,6 +139,31 @@ def investigate(incident_ref: str) -> None:
             typer.echo(f"    at risk (gross)  {impact.at_risk_gross} {impact.currency}")
             typer.echo(f"    usage offset     {impact.applied_usage_offset}")
             typer.echo(f"    AT RISK          {impact.at_risk_value} {impact.currency}")
+
+        if state.interventions:
+            typer.echo(
+                f"\n  INTERVENTIONS ({len(state.interventions)} ranked -- "
+                f"drafted by a model, ordered by analytics/)"
+            )
+            decisions = {item.draft.title: item.outcome for item in state.policy_decisions}
+            for rank, ranked in enumerate(state.interventions, start=1):
+                outcome_for = decisions.get(ranked.draft.title)
+                typer.echo(f"    {rank}. {ranked.draft.title}")
+                typer.echo(
+                    f"       action {ranked.draft.action.value}   "
+                    f"expected {ranked.score.expected_value} {state.opportunity.currency}   "
+                    f"score {ranked.score.composite_score}"
+                )
+                if outcome_for is not None:
+                    typer.echo(
+                        f"       POLICY {outcome_for.decision.value.upper():<17} "
+                        f"tier {int(outcome_for.risk_tier)}   "
+                        f"rules: {', '.join(outcome_for.matched_rules)}"
+                    )
+
+            typer.echo(
+                "\n  Nothing was executed. Session 5 decides; execution arrives in Session 6."
+            )
     except RevenueSentinelError as error:
         # Our own errors are expected conditions with actionable messages. A traceback
         # would bury the message that explains what to do next.

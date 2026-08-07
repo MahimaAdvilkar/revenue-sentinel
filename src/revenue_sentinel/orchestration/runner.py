@@ -41,7 +41,7 @@ from revenue_sentinel.mcp.client import InProcessMcpClient
 from revenue_sentinel.mcp.context import ToolContext, build_simulated_adapters
 from revenue_sentinel.orchestration.graph import GRAPH_VERSION, build_graph
 from revenue_sentinel.orchestration.mcp_evidence_source import McpEvidenceSource
-from revenue_sentinel.orchestration.nodes import IMPACT_NODE, NodeContext
+from revenue_sentinel.orchestration.nodes import POLICY_NODE, NodeContext
 from revenue_sentinel.orchestration.persistence import PersistedInvestigation, persist_investigation
 from revenue_sentinel.orchestration.state import WorkflowState
 from revenue_sentinel.orchestration.transitions import GRAPH_EXIT_NODE, TransitionRecorder
@@ -207,7 +207,7 @@ def run_investigation(
     final: WorkflowState = result["state"]
 
     # The exit transition: recorded after the last node, completing the chain.
-    recorder.record(from_node=IMPACT_NODE, to_node=GRAPH_EXIT_NODE, state_digest=final.digest())
+    recorder.record(from_node=POLICY_NODE, to_node=GRAPH_EXIT_NODE, state_digest=final.digest())
 
     persisted = persist_investigation(session, final, occurred_at=evaluated_at)
 
