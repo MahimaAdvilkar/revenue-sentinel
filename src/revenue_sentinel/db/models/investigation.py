@@ -24,7 +24,7 @@ from revenue_sentinel.db.base import (
     uuid_fk,
     uuid_pk,
 )
-from revenue_sentinel.domain.enums import ActionType, ComputedBy, SourceSystem, TrustLevel
+from revenue_sentinel.domain.enums import ComputedBy, ProposedAction, SourceSystem, TrustLevel
 
 
 class EvidenceItem(Base, CreatedAtMixin):
@@ -131,7 +131,9 @@ class Intervention(Base, CreatedAtMixin):
     run_id: Mapped[uuid_fk] = mapped_column(sa.ForeignKey("workflow_runs.id", ondelete="CASCADE"))
     rank: Mapped[int] = mapped_column(sa.Integer)
     title: Mapped[short_text]
-    action_type: Mapped[ActionType] = mapped_column(pg_enum(ActionType, "action_type"))
+    # `ProposedAction`, not `ActionType`: an intervention records what was *proposed*,
+    # including proposals the policy layer refused. See migration 0004.
+    action_type: Mapped[ProposedAction] = mapped_column(pg_enum(ProposedAction, "proposed_action"))
     rationale: Mapped[long_text]
     expected_value: Mapped[money]
     effort_score: Mapped[score]

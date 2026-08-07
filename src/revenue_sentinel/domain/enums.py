@@ -289,10 +289,45 @@ class ApprovalStatus(StrEnum):
 
 @unique
 class ActionType(StrEnum):
+    """What the system is *able to execute*. Stored on `action_records`.
+
+    Deliberately narrower than `ProposedAction`: there is no member here for anything
+    the policy layer would refuse, so a prohibited action has no representation in the
+    execution tables at all.
+    """
+
     CRM_TASK = "crm_task"
     EMAIL_DRAFT = "email_draft"
     CRM_FIELD_UPDATE = "crm_field_update"
     SLACK_APPROVAL_REQUEST = "slack_approval_request"
+
+
+@unique
+class ProposedAction(StrEnum):
+    """What a strategy agent may *propose*. Stored on `interventions`.
+
+    Wider than `ActionType` on purpose. A system that can only represent permissible
+    proposals cannot record having refused an impermissible one -- the refusal would
+    have to be dropped on the floor, and a denial nobody can point at is
+    indistinguishable from a denial that never happened.
+
+    So the model is free to propose sending an email directly. It is simply told no,
+    in writing, with the rule that said so (`governance/tiers.py`).
+    """
+
+    CRM_TASK = "crm_task"
+    EMAIL_DRAFT = "email_draft"
+    CRM_FIELD_UPDATE = "crm_field_update"
+    SLACK_APPROVAL_REQUEST = "slack_approval_request"
+
+    # Tier 3 -- proposable, never executable.
+    SEND_EMAIL_DIRECT = "send_email_direct"
+    RECORD_DELETE = "record_delete"
+
+
+EXECUTABLE_ACTIONS: Final = frozenset(ActionType)
+"""The `ProposedAction` members that have an `ActionType` counterpart. Compared by
+value, since the two enums overlap by value rather than by identity."""
 
 
 @unique
