@@ -216,9 +216,17 @@ guarantee is proven in-process.
 
 ---
 
-## Session 5 — Strategy and policy
+## Session 5 — Strategy and policy ✅ COMPLETE
 
 **Objective.** Ranked interventions, and the real governance layer.
+
+**Outcome.** All nine acceptance criteria met; **789 tests pass (56 new)**. ADR-0015
+added for policy as a pure function. Migration `0004` widened `interventions.action_type`
+to `proposed_action`, so a **refused** proposal can be recorded rather than dropped. The
+golden scenario yields **1 ALLOW, 1 REQUIRE_APPROVAL, 1 DENY** — and **nothing executes**:
+the four write tools remain unwired, `run_investigation` still binds `policy=None`, and
+no `action_records` row is written. Money figures unchanged at $108,000.00 / $32,130.00.
+$0 spent; the strategy fixture is hand-authored (ADR-0013).
 
 **Files / modules** — `agents/strategist.py`, `analytics/intervention_scoring.py`,
 `governance/policy_engine.py`, `governance/rules.py`, `governance/tiers.py`,
@@ -239,13 +247,38 @@ guarantee is proven in-process.
 boundary cases; default-deny; escalation on ambiguity; approval request creation, expiry,
 and self-approval rejection.
 
-**Demo result.** Three ranked interventions with three different policy outcomes, and the
-matched rules for each.
+**Demo result.** ✅ `make investigate INCIDENT=INC-001`:
 
-**Risks.** Tier boundaries that feel arbitrary. Scoring weights tuned to produce a pleasing
-demo ranking rather than a defensible one.
+```
+  INTERVENTIONS (3 ranked -- drafted by a model, ordered by analytics/)
+    1. Book a proposal review with the economic buyer
+       action crm_task   expected 16065.00 USD   score 4.96
+       POLICY ALLOW             tier 1   rules: tier1:internal-reversible
+    2. Send the champion a usage-insight summary
+       action email_draft   expected 16065.00 USD   score 2.48
+       POLICY REQUIRE_APPROVAL  tier 2   rules: tier2:customer-facing
+    3. Email the buying committee directly to force a decision
+       action send_email_direct   expected 16065.00 USD   score 1.24
+       POLICY DENY              tier 3   rules: tier3:prohibited-capability
 
-**Must remain unfinished.** Nothing executes yet. No approval UI.
+  Nothing was executed. Session 5 decides; execution arrives in Session 6.
+```
+
+The model drafted **four**; the scorer dropped the lowest and kept three. Which three is
+`analytics/`'s call, and a test asserts the dropped one is absent — otherwise the ranking
+would be untested in the only way that matters.
+
+**Risks — as they landed.** Tier boundaries did not feel arbitrary because they were
+transcribed from `docs/security-model.md` §3 rather than invented, and a test compares
+the two. Scoring weights were the real risk: the composite is normalised by weighted
+value so it ranks the *intervention* rather than restating which deal is bigger, and
+tier 3 is scored far above tier 2 so a prohibited action can never out-rank a permitted
+one on expected value alone.
+
+**Remained unfinished, by design.** Nothing executes. No approval UI and no approval
+endpoints — `governance/approvals.py` is reachable only from tests and from persistence.
+No retries, no cost governance, no evaluation, no frontend. Every integration still
+SIMULATED. `$0` spent.
 
 ---
 

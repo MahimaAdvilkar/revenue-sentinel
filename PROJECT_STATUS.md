@@ -1,8 +1,8 @@
 # Project Status
 
-**Last updated:** 2026-08-05
-**Current milestone:** Session 4 — GTM MCP server ✅ **COMPLETE**
-**Next milestone:** Session 5 — Strategy and policy (awaiting approval)
+**Last updated:** 2026-08-06
+**Current milestone:** Session 5 — Strategy and policy ✅ **COMPLETE**
+**Next milestone:** Session 6 — Execution and audit (awaiting approval)
 
 ---
 
@@ -17,17 +17,19 @@ figures did not move by a cent.
 | Question | Answer |
 |---|---|
 | Can you run it? | Yes — `make setup && make up && make migrate && make seed && make ingest && make investigate` |
-| Can you run the tests? | Yes — **730 pass, 0 skipped, 0 xfailed** |
+| Can you run the tests? | Yes — **789 pass, 0 skipped, 0 xfailed** |
 | Does detection work? | Yes — 1 signal across 15 opportunities, `INC-001` at `HIGH` |
-| Does the investigation work? | Yes — 4 nodes, 5 transitions, 6 evidence items, 2 hypotheses |
+| Does the investigation work? | Yes — **6 nodes, 7 transitions**, 6 evidence items, 2 hypotheses, 3 ranked interventions |
 | **Is the MCP server real?** | **Yes.** 15 tools, both transports. `make mcp` runs a spec-compliant stdio server; a test drives it as a real subprocess |
 | **Are the integrations real?** | **No. Every one is SIMULATED**, and every tool result says so — over both transports |
 | Are the money figures right? | Yes — computed by `analytics/`, asserted to the cent |
+| **Is the policy engine real?** | **Yes.** Four tiers, default-deny, escalation on ambiguity, every decision recording its rules. A pure function (ADR-0015) |
 | Can the system write to anything? | **No.** 4 write tools are registered but unwired; the graph binds no policy engine, so a write would raise |
+| **Did anything execute?** | **No.** Session 5 decides and records. `action_records` is empty, and a test asserts it |
 | Is it replay-safe? | Ingestion yes. **Investigation replay is Session 6** and is refused with an explanation. |
 | **Has this system ever called a model?** | **No. Not once.** |
 | Are the LLM fixtures real? | **No — hand-authored, not recorded.** See ADR-0013. |
-| Does `make demo` work? | No. There is no strategy, policy, or execution yet. |
+| Does `make demo` work? | No. There is no execution, cost governance, or dashboard yet. |
 
 ---
 
@@ -139,6 +141,36 @@ stdio NOT_FOUND: NOT_FOUND | is_error: True
 A real subprocess over real pipes, not a simulation of a transport. 11 automated tests in
 `tests/integration/test_transport_parity.py` hold that claim to account.
 
+### Session 5 — Strategy and policy ✅
+
+**Delivered**
+
+| Group | Detail |
+|---|---|
+| `governance/` | `outcomes.py` (the shared `PolicyOutcome`), `tiers.py`, `rules.py`, `policy_engine.py`, `approvals.py` |
+| `analytics/intervention_scoring.py` | Banded recovery/effort tables, tier-derived risk, normalised composite, total ordering |
+| `agents/strategist.py` | Drafts 3-5 interventions; **supplies no numbers and no ordering** |
+| `agents/policy_agent.py` | Deterministic; one decision per intervention |
+| `orchestration/` | Two new nodes (`draft_interventions`, `evaluate_policy`), state fields, governance persistence |
+| `alembic/0004` | `interventions.action_type` widened to `proposed_action` |
+| `fixtures/llm/` | 1 hand-authored strategy fixture — 4 total |
+| `tests/` | **56 new — 789 total** |
+| Docs | **ADR-0015** (policy as a pure function) |
+
+**Acceptance — all nine criteria met**
+
+| # | Criterion | Result |
+|---|---|---|
+| 1 | Exactly 3 interventions, ranked by a tested deterministic score | ✅ model drafted 4; scorer kept 3 |
+| 2 | The LLM drafts; the scorer ranks | ✅ `analytics/` cannot import `intelligence/` or `agents/` (R3), asserted again per-module by AST |
+| 3 | Policy engine is a pure function | ✅ no I/O, no clock; 25 identical evaluations asserted |
+| 4 | All four tiers; "material CRM change" matches the security model exactly | ✅ set transcribed and compared by test |
+| 5 | **Default-deny** for unclassified actions | ✅ unknown action, unknown field, and *no* field all deny |
+| 6 | Ambiguity escalates to the higher tier | ✅ `max()`; mixed field update → tier 2; unclassified field → tier 3 |
+| 7 | Every decision records `matched_rules` and a readable reason | ✅ asserted on all three golden rows |
+| 8 | Approvals with `expires_at`; no self-approval | ✅ plus expiry evaluated **on read**, not by a sweeper |
+| 9 | Golden scenario: 1 ALLOW, 1 REQUIRE_APPROVAL, 1 DENY | ✅ and `action_records` is empty |
+
 ---
 
 ## What is real and what is not
@@ -170,8 +202,9 @@ investigation graph, and none has ever been executed.** `run_investigation` bind
 write attempted from that path raises rather than executing — and certainly not under the
 allow-everything stub. **`StubPolicyEngine` was never used to demonstrate a write.**
 
-**Not real, and not claimed to be:** the real policy engine, approvals, the strategy agent,
-execution, the retry engine, cost governance, evaluation, and the dashboard. There is **no
+**Not real, and not claimed to be:** execution, the retry engine, the approval UI and its
+endpoints, cost governance, evaluation, and the dashboard. **Nothing the policy engine
+allows is carried out** — an ALLOW in Session 5 is a recorded decision, not an action. There is **no
 `messaging_send_email` tool** and no send method on `MessagingPort` — Tier 3 is absent from
 the interface, not merely unrouted. **`BUDGET_EXCEEDED` is a defined error code with no
 real producer until Session 7**; nothing raises it today.
@@ -283,6 +316,41 @@ question. **No test was weakened, skipped, or xfailed to reach green.**
 
 ---
 
+## Deviations and findings from Session 5
+
+**A refused proposal had nowhere to live.** `interventions.action_type` and
+`action_records.action_type` shared one enum whose members were all executable. A denied
+proposal therefore could not be persisted at all — the refusal would have been dropped on
+the floor, and a denial nobody can point at is indistinguishable from a denial that never
+happened. Migration `0004` gives `interventions` a wider `proposed_action` type. The
+execution enum stays narrow deliberately: a prohibited action has no representation in
+the execution tables.
+
+**Default-deny was almost dead code.** The natural way to classify an action is an
+exhaustive `match` with a `case _` default — and mypy correctly reported that default as
+unreachable, because the match covered every enum member. Left that way, a member added
+later and forgotten would have fallen through to whichever branch happened to be last
+rather than to DENY. `classify` now uses a mapping with a denying default, so
+default-deny is a runtime property and not a comment.
+
+**LangGraph checkpoints workflow state, and it must be serialisable.**
+`ScoredIntervention` started as a plain class with `__slots__` and the whole suite failed
+with `Type is not msgpack serializable` the moment it reached state. It is a frozen
+dataclass now. Recorded because it is a real constraint on anything added to
+`WorkflowState`, not a one-off.
+
+**Six existing assertions changed, and none was weakened.** All six are exact-equality
+assertions that were exactly right about a four-node graph and are now exactly right
+about a six-node one: `graph_version` `v1` → `v2`; transitions `5` → `7`; model calls
+`3` → `4`; enum types `26` → `27`. Nothing was relaxed to a range or an inequality.
+
+**`detected` and `investigated` moved to `tests/integration/conftest.py`.**
+`test_governance.py` asserts against the *same* golden run as `test_investigation.py`,
+and two modules each running their own investigation would be two runs that could
+disagree.
+
+---
+
 ## Honest caveats
 
 **The live path is unexercised.** See above. This is the largest gap in the project.
@@ -296,9 +364,23 @@ interrupts); Session 6 changes that and ADR-0012 says so.
 **Prompt quality is untested.** The prompts are reasonable and the framing is
 deliberate, but no live response has ever been evaluated against them.
 
-**Nothing enforces policy for real.** The gate is real — a write tool with no engine bound
-raises, and a denied write never reaches its adapter — but the only engines that exist are
-an allow-all stub and a deny-all stub, both for tests. The real engine is Session 5.
+**Nothing executes.** The policy engine is real and its decisions are recorded, but an
+ALLOW causes nothing to happen. The four write tools are still unwired from the graph and
+`action_records` is empty — asserted by a test rather than assumed.
+
+**Approvals have no UI and no endpoints.** `governance/approvals.py` is reachable from
+tests and from persistence, and nowhere else. Approving something requires calling
+Python. That is Session 6.
+
+**`approval_requests` has no `requested_by` column.** The requesting actor is stored in
+`decision_note` as `requested_by=<actor>`, and self-approval rejection reads it back from
+there. It works and it is tested, but it is a workaround; the column belongs in the
+schema. Recorded as an accepted limitation in ADR-0015.
+
+**The scoring bands are heuristics, and the claim for them is narrow.** They are not
+calibrated against historical outcomes — no such dataset exists for a synthetic account.
+What they are is deterministic, versioned, inspectable, and tested at every boundary. The
+same caveat ADR-0008 makes for the risk bands applies here.
 
 **The stdio write-refusal shape is unpinned.** See the Session 4 deviations above.
 
@@ -328,19 +410,25 @@ uv run alembic check               # no drift
 
 ---
 
-## Next milestone — Session 5: Strategy and policy
+## Next milestone — Session 6: Execution and audit
 
-**Objective.** Ranked interventions, and the real governance layer.
+**Objective.** Carry out what the policy layer approved, idempotently, with a durable
+checkpointer and a real human-in-the-loop interrupt.
 
-**Session 4 leaves it well positioned:** the gate, the tiers, and the four write tools
-already exist and are tested; Session 5 supplies the engine behind them rather than the
-plumbing. `POLICY_DENIED` already forbids retry and rerouting, and `APPROVAL_REQUIRED` is a
-defined code awaiting a producer.
+**Session 5 leaves it well positioned:** the decisions exist and are recorded; the four
+write tools exist, are policy-gated, and are tested; `action_records.idempotency_key` is
+already `UNIQUE`. Session 6 wires the graph to act on an approval rather than inventing
+the authorisation model under deadline.
 
-**Carried into Session 5:** pin the client-visible shape of a stdio write refused for want
-of a policy engine — typed result, or hard misconfiguration failure.
+**Carried into Session 6:**
 
-**Will remain unfinished:** execution, retries, cost governance, evaluation, the dashboard.
+1. Pin the client-visible shape of a stdio write refused for want of a policy engine.
+2. Add `approval_requests.requested_by` as a real column — see the accepted limitation in
+   ADR-0015.
+3. Replace `InMemorySaver` with the durable checkpointer (ADR-0012), which only becomes
+   load-bearing once an interrupt genuinely has to survive the process exiting.
+
+**Will remain unfinished:** cost governance, evaluation, the dashboard.
 
 ---
 
@@ -362,8 +450,8 @@ of a policy engine — typed result, or hard misconfiguration failure.
 | Item | Value |
 |---|---|
 | Branch | `main`, tracking `origin/main` |
-| Pushed | Phase 0/1, Sessions 1–3 (31 commits, `328063f`) |
-| Session 4 | **Uncommitted** — awaiting review |
+| Pushed | Phase 0/1, Sessions 1–4 (39 commits, `82bee2b`) |
+| Session 5 | **Uncommitted** — awaiting review |
 
 ---
 

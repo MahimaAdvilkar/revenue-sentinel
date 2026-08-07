@@ -1,6 +1,6 @@
 # Capability Matrix
 
-**Last updated:** 2026-08-05 — end of Session 4
+**Last updated:** 2026-08-06 — end of Session 5
 **Rule:** every capability in this repository carries exactly one of four statuses, and the
 status shown here matches what the code and the dashboard say (rules 5 and 19).
 
@@ -26,9 +26,9 @@ status shown here matches what the code and the dashboard say (rules 5 and 19).
 > `NotImplementedError` and are ROADMAP. A test asserts the count, so "eight detectors"
 > cannot be claimed anywhere, including by accident.
 >
-> **The investigation graph runs offline.** Four nodes, three LLM call sites, and the
-> deterministic impact calculator, producing $108,000 weighted and $32,130 at risk on the
-> golden scenario.
+> **The investigation graph runs offline.** **Six nodes**, four LLM call sites, and two
+> deterministic ones, producing $108,000 weighted and $32,130 at risk on the golden
+> scenario — plus three ranked interventions with three different policy outcomes.
 >
 > **No live model call has ever been made.** The LLM fixtures are **hand-authored**, not
 > recorded (ADR-0013). `AnthropicLLMClient` and `make record` are written and unit-tested
@@ -56,7 +56,20 @@ status shown here matches what the code and the dashboard say (rules 5 and 19).
 > `run_investigation` binds **no policy engine at all**, so a write reached from the graph
 > raises instead of executing.
 >
-> **No policy engine, no approvals, no execution, no cost tracking, and no dashboard
+> **As of Session 5 the policy engine is real.** Four tiers, **default-deny** for
+> unclassified actions, escalation to the higher tier on ambiguity, and every decision
+> recording its `matched_rules` and a readable reason. It is a pure function (ADR-0015):
+> no I/O, no clock, no access to model-produced free text.
+>
+> **The strategy agent drafts; `analytics/` ranks.** The model supplies qualitative bands
+> and no numbers at all. `import-linter` R3 forbids `analytics/` from importing
+> `intelligence/` or `agents/`, so a model cannot influence the ranking even by accident.
+>
+> **Nothing executes.** An ALLOW in Session 5 is a recorded decision, not an action. The
+> four write tools remain unwired from the graph, `run_investigation` still binds no
+> policy engine, and `action_records` is empty — asserted by a test, not assumed.
+>
+> **No execution, no retries, no approval UI, no cost tracking, and no dashboard
 > exists.**
 
 ---
@@ -73,7 +86,7 @@ status shown here matches what the code and the dashboard say (rules 5 and 19).
 | **Simulated adapters (6 ports)** | **SIMULATED** | 4 — all declare `INTEGRATION_STATUS = "SIMULATED"`; an undeclared module raises |
 | **Tool-call ledger** | **IMPLEMENTED** | 4 — a row for success, typed error, **and policy denial**; trace + span correlated |
 | **Policy gate on write tools** | **IMPLEMENTED** | 4 — 4 write tools; no engine bound → raises; a denied write never reaches its adapter |
-| **Write execution from the graph** | **NOT WIRED** | 4 — write tools registered, but `run_investigation` binds **no policy engine**, so a write raises rather than executes. Session 5/6 |
+| **Write execution from the graph** | **NOT WIRED** | 4–5 — write tools registered and now genuinely policy-classified, but `run_investigation` still binds **no policy engine** and nothing acts on a decision. Session 6 |
 | CRM adapter | **SIMULATED** | 4 — fixture-backed; real HubSpot/Salesforce is ROADMAP |
 | Product-usage adapter | **SIMULATED** | 4 — real warehouse/Segment is ROADMAP |
 | Engagement adapter | **SIMULATED** | 4 — real Gmail/Outlook is ROADMAP |
@@ -107,7 +120,8 @@ tested property rather than prose.
 |---|---|
 | `INVALID_ARGUMENTS` · `NOT_FOUND` · `ADAPTER_ERROR` | ✅ real, exercised by tests and over stdio |
 | `POLICY_DENIED` | ✅ real, from the gate |
-| `APPROVAL_REQUIRED` · `RATE_LIMITED` | Defined; producers arrive with the real policy engine and adapter throttles |
+| `APPROVAL_REQUIRED` | ✅ real as of Session 5 — raised by the gate when the engine returns `REQUIRE_APPROVAL` |
+| `RATE_LIMITED` | Defined; the producer arrives with adapter throttles |
 | **`BUDGET_EXCEEDED`** | **Defined, but has no real producer until Session 7.** Nothing raises it today |
 
 ---
@@ -158,16 +172,16 @@ They are counted by the registry and excluded from execution by `implemented_det
 | Research Agent | **LLM** (source choice) | **IMPLEMENTED** (fixture-backed) | 3; gathers evidence **through MCP** as of 4 |
 | Revenue Analyst — hypotheses | **LLM** | **IMPLEMENTED** (fixture-backed) | 3 |
 | Revenue Analyst — impact | Deterministic | **IMPLEMENTED** | 1 (calculator), 3 (wired into the graph) |
-| Strategy Agent — draft | **LLM** | SCAFFOLDED | 5 |
-| Strategy Agent — ranking | Deterministic | SCAFFOLDED | 5 |
-| Policy & Risk Agent | Deterministic | SCAFFOLDED | 5 |
+| Strategy Agent — draft | **LLM** | **IMPLEMENTED** (fixture-backed) | 5 — drafts 3-5; supplies bands, never numbers |
+| Strategy Agent — ranking | Deterministic | **IMPLEMENTED** | 5 — `analytics/`; the model cannot reach it (R3) |
+| Policy & Risk Agent | Deterministic | **IMPLEMENTED** | 5 — one decision per intervention; decides nothing that then happens |
 | Execution Agent | Deterministic | SCAFFOLDED | 6 |
 | Evaluation Agent | Deterministic rubric | SCAFFOLDED | 8 |
 | Cost Governor | Deterministic | SCAFFOLDED | 7 |
 
 | Capability | Status | Session |
 |---|---|---|
-| LangGraph state machine | **IMPLEMENTED** | 3 — 4 nodes; graph ends at `calculate_impact` |
+| LangGraph state machine | **IMPLEMENTED** | 3, extended 5 — **6 nodes**; graph ends at `evaluate_policy` |
 | Persisted state transitions | **IMPLEMENTED** | 3 — written before the next node runs |
 | Checkpoint and resume | SCAFFOLDED | `InMemorySaver` only (ADR-0012); durable saver in 6 |
 | Human-in-the-loop interrupt | SCAFFOLDED | 6 |
@@ -177,14 +191,27 @@ They are counted by the registry and excluded from execution by `implemented_det
 
 ## 4. Layer 4 — Governance & Approval
 
+> **Known technical debt, due in Session 6.** `approval_requests` has **no
+> `requested_by` column**. The requesting actor is stored inside `decision_note` as the
+> string `requested_by=<actor>`, and `approvals.requested_by()` parses it back out —
+> which is what self-approval rejection depends on. It works and it is tested, but it is
+> a workaround: the actor belongs in a real column with a real constraint, not in a free-text
+> field that a future `decision_note` write could overwrite. Adding it is a Session 6
+> migration, deliberately not smuggled into a session that promised not to execute
+> anything. Recorded in [ADR-0015](docs/architecture-decisions/0015-policy-as-a-pure-function.md)
+> and [`PROJECT_STATUS.md`](PROJECT_STATUS.md).
+
 | Capability | Status | Session |
 |---|---|---|
-| **Real policy engine** | SCAFFOLDED | 5 — **not built.** `StubPolicyEngine` (allow-all) and `DenyAllPolicyEngine` exist for tests only. **The stub was never used to demonstrate a write** |
+| **Real policy engine** | **IMPLEMENTED** | 5 — pure function over a versioned rule set (ADR-0015). `StubPolicyEngine` / `DenyAllPolicyEngine` remain **for tests only** and are bound nowhere in `src/` |
 | **Policy gate at the tool boundary** | **IMPLEMENTED** | 4 — a write tool with no engine bound raises; a denied write never reaches its adapter |
-| Four-tier risk classification | SCAFFOLDED | 5 — tiers are declared per tool in the registry; the classifier is Session 5 |
-| Default-deny for unclassified actions | SCAFFOLDED | 5 |
-| **Approval flow** | SCAFFOLDED | 5 — `APPROVAL_REQUIRED` is a defined error code with no producer yet |
-| Approval requests with expiry | SCAFFOLDED | 5 |
+| Four-tier risk classification | **IMPLEMENTED** | 5 — `governance/tiers.py`; the material-field set is transcribed from `docs/security-model.md` §3 and a test compares them |
+| **Default-deny for unclassified actions** | **IMPLEMENTED** | 5 — unknown action, unknown field, and *unspecified* field all deny. A mapping with a denying default, not a dead `case _` |
+| **Escalation on ambiguity** | **IMPLEMENTED** | 5 — `max()` over matched rules; `RiskTier` is an `IntEnum` for exactly this |
+| **Deterministic intervention ranking** | **IMPLEMENTED** | 5 — `analytics/intervention_scoring.py`; total ordering, tie-break fully determined |
+| **Approval requests** | **IMPLEMENTED** | 5 — created on REQUIRE_APPROVAL, with `expires_at`; **expiry is evaluated on read**, so a lapsed request cannot authorise anything |
+| **No self-approval** | **IMPLEMENTED** | 5 — the requesting actor cannot decide; enforced in `governance/`, not in a route |
+| **Approval UI and endpoints** | SCAFFOLDED | 6 — approving something currently requires calling Python |
 | Approval inbox (UI) | SCAFFOLDED | 9 |
 | Delegation / role-based approval | ROADMAP | — |
 
@@ -203,7 +230,7 @@ They are counted by the registry and excluded from execution by `implemented_det
 | Evidence citation gate | **IMPLEMENTED** | 3 — application check plus foreign keys |
 | Prompt caching | SCAFFOLDED | 7 |
 | **Deterministic pipeline-impact calculator** | **IMPLEMENTED** | 1 — [`analytics/pipeline_impact.py`](src/revenue_sentinel/analytics/pipeline_impact.py); 60 tests, exact to the cent |
-| **Deterministic intervention scoring** | SCAFFOLDED | 5 |
+| **Deterministic intervention scoring** | **IMPLEMENTED** | 5 — banded recovery/effort, tier-derived risk, size-independent composite |
 | Banded risk factors (ADR-0008) | **IMPLEMENTED** | 1 — [`analytics/risk_bands.py`](src/revenue_sentinel/analytics/risk_bands.py); every band boundary tested |
 | Memory (Postgres tables) | SCAFFOLDED | 3 |
 | Vector / semantic retrieval | ROADMAP | — |

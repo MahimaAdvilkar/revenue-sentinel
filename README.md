@@ -10,12 +10,13 @@ cost, and evaluates its own behaviour.
 
 ## ⚠️ Current status — read this first
 
-> **Session 4 of 11 is complete: detection and investigation run through a real MCP server,
+> **Session 5 of 11 is complete: detection, investigation, strategy and policy run —
 > offline and for free.**
 >
 > `make investigate INCIDENT=INC-001` produces a plan, six evidence items, two hypotheses
-> each citing real evidence, and **$108,000 weighted / $32,130 at risk** — with no API key
-> and no network. Verified by **730 passing tests**.
+> each citing real evidence, **$108,000 weighted / $32,130 at risk**, and three ranked
+> interventions carrying **one ALLOW, one REQUIRE_APPROVAL and one DENY** — with no API key
+> and no network. Verified by **789 passing tests**.
 >
 > **The GTM MCP server is real.** 15 narrow, strictly-typed tools; no `run_sql`, no
 > `http_request`. Two transports, both IMPLEMENTED: the in-process client the graph and
@@ -32,14 +33,20 @@ cost, and evaluates its own behaviour.
 > carries it, and an adapter that fails to declare one raises rather than defaulting.
 > **This system has never made an API call.**
 >
-> **It cannot write to anything.** The four write tools are registered and policy-gated but
-> **not wired into the graph**, and none has ever been executed — the investigation binds no
-> policy engine at all, so a write from that path raises. There is no `messaging_send_email`
-> tool and no send method on the messaging port.
+> **The policy engine is real, and it says no.** Four tiers, default-deny for anything
+> unclassified, escalation to the higher tier when rules disagree, and every decision
+> recording the rules that produced it. It is a pure function — no I/O, no clock, and no
+> access to model-written text (ADR-0015). The model may *propose* sending an email
+> directly; the system refuses and records the refusal.
 >
-> What does not exist yet: **the real policy engine, approvals, the strategy agent,
-> execution, cost governance, and the dashboard.** `make demo` does not work. See
-> [`PROJECT_STATUS.md`](PROJECT_STATUS.md) for the precise state.
+> **Nothing executes.** An ALLOW is a recorded decision, not an action. The four write
+> tools are registered and policy-gated but **not wired into the graph**, and none has
+> ever been executed. There is no `messaging_send_email` tool and no send method on the
+> messaging port.
+>
+> What does not exist yet: **execution, retries, the approval UI, cost governance, and the
+> dashboard.** `make demo` does not work. See [`PROJECT_STATUS.md`](PROJECT_STATUS.md) for
+> the precise state.
 >
 > **All integrations are SIMULATED by design.** No real HubSpot, Salesforce, Gmail, Slack,
 > customer, or employer data is connected — now or during the initial build. Every
@@ -161,11 +168,11 @@ Verified from a clean database against the current commit:
 cp .env.example .env    # then set POSTGRES_PASSWORD and match it in DATABASE_URL
 make setup              # install dependencies (uv, Python 3.12.3)
 make up                 # start PostgreSQL on host port 55432
-make migrate            # 29 tables, 26 native enum types
+make migrate            # 29 tables, 27 native enum types
 make seed               # 92 deterministic rows, all is_simulated = true
 make ingest             # detect signals and open incidents (SIMULATED source feed)
 make investigate        # run the investigation graph offline (INCIDENT=INC-001)
-make check              # lint, format, mypy --strict, boundaries, 730 tests
+make check              # lint, format, mypy --strict, boundaries, 789 tests
 make api                # then: curl localhost:8000/incidents/INC-001
 make mcp                # the GTM MCP server over stdio (SIMULATED adapters)
 ```
