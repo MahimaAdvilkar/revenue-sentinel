@@ -21,11 +21,20 @@ from typing import Annotated, Final
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
+from revenue_sentinel.analytics.intervention_scoring import EffortBand, RecoveryBand
+from revenue_sentinel.domain.enums import ProposedAction
+
 MIN_PLAN_STEPS: Final = 1
 MAX_PLAN_STEPS: Final = 6
 MIN_HYPOTHESES: Final = 2
 MAX_HYPOTHESES: Final = 4
 MAX_EVIDENCE_REQUESTS: Final = 8
+MIN_INTERVENTIONS: Final = 3
+MAX_INTERVENTIONS: Final = 5
+TOP_INTERVENTIONS: Final = 3
+"""The graph persists the three highest-scoring drafts. The model may offer up to five;
+which three survive is decided by `analytics/`, not by the order they were written in."""
+MAX_CHANGED_FIELDS: Final = 5
 
 
 @unique
@@ -136,3 +145,46 @@ class HypothesisSet(StructuredOutput):
     @property
     def cited_refs(self) -> frozenset[str]:
         return frozenset(ref for hypothesis in self.hypotheses for ref in hypothesis.cites)
+
+
+class InterventionDraft(StructuredOutput):
+    """One proposed intervention. **Qualitative only.**
+
+    There is no monetary field here and there never will be. The model supplies a
+    `recovery` band and an `effort` band; `analytics/intervention_scoring.py` turns
+    those into expected value, effort, risk, and the composite score (rule 9). A model
+    that wanted to inflate an intervention's ranking has no field to do it in.
+
+    `action` is a `ProposedAction`, which is wider than what the system can execute.
+    The model may propose sending an email directly; the policy layer refuses it and
+    records the refusal. Constraining the schema to only-permissible actions would
+    hide that the model asked.
+    """
+
+    title: NonEmptyText
+    action: ProposedAction
+    rationale: NonEmptyText
+    recovery: RecoveryBand
+    effort: EffortBand
+    target_ref: Annotated[str, StringConstraints(pattern=r"^(ACC|OPP|INC)-[0-9]{3,6}$")]
+    fields_changed: tuple[Annotated[str, StringConstraints(min_length=1, max_length=64)], ...] = (
+        Field(default=(), max_length=MAX_CHANGED_FIELDS)
+    )
+    """Only meaningful for `crm_field_update`. Empty for everything else -- and an
+    empty set on a field update classifies as tier 3, because an unspecified mutation
+    cannot be assessed."""
+
+
+class InterventionSet(StructuredOutput):
+    """3-5 drafted interventions. The scorer ranks them; the graph keeps the top 3."""
+
+    interventions: tuple[InterventionDraft, ...] = Field(
+        min_length=MIN_INTERVENTIONS, max_length=MAX_INTERVENTIONS
+    )
+
+    @model_validator(mode="after")
+    def _titles_are_distinct(self) -> InterventionSet:
+        titles = [draft.title for draft in self.interventions]
+        if len(set(titles)) != len(titles):
+            raise ValueError("interventions must be distinct; two share a title")
+        return self

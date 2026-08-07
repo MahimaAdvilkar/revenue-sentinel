@@ -1,0 +1,46 @@
+{
+  "$note": "HAND-AUTHORED, not recorded from a live model. See ADR-0013 and PROJECT_STATUS.md. No Anthropic API call has been made by this project.",
+  "$policy_note": "Four drafts, deliberately. The third proposes an action this system is NOT permitted to perform, so the policy layer denies it and the denial is recorded rather than hidden. The fourth is permitted but scores lowest and is dropped by analytics/intervention_scoring.py -- which is what makes the ranking load-bearing rather than decorative.",
+  "node_name": "draft_interventions",
+  "prompt_digest": "1106d2e032107462105e67ff9878289ec7e4d8ad490472e11503f21fb71ca773",
+  "output": {
+    "interventions": [
+      {
+        "title": "Book a proposal review with the economic buyer",
+        "action": "crm_task",
+        "rationale": "Usage is climbing while sales contact has stopped, which points at an absent seller rather than a disengaged buyer. A task on the owner to book a proposal review is the smallest action that tests that reading, and it is internal and reversible.",
+        "recovery": "high",
+        "effort": "low",
+        "target_ref": "OPP-2001",
+        "fields_changed": []
+      },
+      {
+        "title": "Send the champion a usage-insight summary",
+        "action": "email_draft",
+        "rationale": "The account's feature usage rose sharply in the most recent week. Putting that in front of the champion gives them an internal argument to make on our behalf. This reaches a customer, so it should be drafted and reviewed rather than sent automatically.",
+        "recovery": "high",
+        "effort": "medium",
+        "target_ref": "ACC-1001",
+        "fields_changed": []
+      },
+      {
+        "title": "Email the buying committee directly to force a decision",
+        "action": "send_email_direct",
+        "rationale": "The fastest way to break a fourteen-day silence would be to contact the whole committee at once without waiting for a review cycle. I am proposing it because it is genuinely what a team under quota pressure would consider, not because I believe it should be permitted.",
+        "recovery": "high",
+        "effort": "low",
+        "target_ref": "ACC-1001",
+        "fields_changed": []
+      },
+      {
+        "title": "Flag the stalled deal to the deal desk in Slack",
+        "action": "slack_approval_request",
+        "rationale": "An internal notification so the deal desk sees the stall in this week's review. It is cheap and safe, but it moves nothing on its own -- it only raises the chance that somebody else does.",
+        "recovery": "low",
+        "effort": "low",
+        "target_ref": "OPP-2001",
+        "fields_changed": []
+      }
+    ]
+  }
+}

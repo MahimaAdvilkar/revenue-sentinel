@@ -74,6 +74,25 @@ tested code elsewhere in this system, and any number you produce would be discar
 
 {_TRUST_FRAMING}"""
 
+STRATEGIST_SYSTEM_PROMPT: Final = f"""\
+You are the Strategy Agent for a B2B revenue operations system.
+
+Given an incident and its analysed hypotheses, propose three to five distinct \
+interventions a revenue team could take. For each, give a short title, the action \
+type, a rationale, the target reference, and two qualitative bands: how much of the \
+at-risk value it could plausibly recover, and how much effort it costs.
+
+Do not produce monetary figures, scores, or a ranking. Expected value, effort, risk \
+and the final ordering are computed by tested code from your bands, and any number or \
+ordering you supply would be discarded. Propose; do not prioritise.
+
+Some action types you may propose are ones this system is not permitted to perform. \
+Propose them anyway if they are genuinely what a team should consider -- a policy \
+layer decides what may run, and a proposal it refuses is recorded rather than hidden. \
+You are not deciding what happens.
+
+{_TRUST_FRAMING}"""
+
 
 # ---------------------------------------------------------------------------
 # Rendering
@@ -172,3 +191,36 @@ def render_incident_context(
         f"  usage_growth_week_over_week: {escape_untrusted(usage_growth)}\n"
         "</incident>"
     )
+
+
+def render_hypothesis_block(*, hypothesis_ref: str, statement: str, cites: tuple[str, ...]) -> str:
+    """One `<hypothesis>` block.
+
+    A hypothesis statement is model-produced rather than ingested, so it is not
+    untrusted in the rule 14 sense -- but it is escaped anyway. It was written from
+    untrusted evidence, and an injection that survived one hop should not be handed to
+    the next node unescaped just because a model retyped it.
+    """
+    citation = ",".join(escape_attribute(ref) for ref in cites)
+    return (
+        f'<hypothesis id="{escape_attribute(hypothesis_ref)}" cites="{citation}">\n'
+        f"  {escape_untrusted(statement)}\n"
+        f"</hypothesis>"
+    )
+
+
+def render_strategy_context(
+    *, incident_block: str, hypotheses: tuple[tuple[str, str, tuple[str, ...]], ...]
+) -> str:
+    """The incident plus its hypotheses, as given to the strategy agent.
+
+    Deliberately does **not** include the impact figures. The strategist supplies
+    qualitative bands; showing it the numbers would invite it to reason about money it
+    is not allowed to produce, and the bands would start tracking the figures rather
+    than the situation.
+    """
+    blocks = "\n".join(
+        render_hypothesis_block(hypothesis_ref=ref, statement=statement, cites=cites)
+        for ref, statement, cites in hypotheses
+    )
+    return f"{incident_block}\n{blocks}"
