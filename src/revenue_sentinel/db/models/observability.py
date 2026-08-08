@@ -20,7 +20,6 @@ from revenue_sentinel.db.base import (
     cost_amount,
     digest,
     json_object,
-    money,
     pg_enum,
     short_text,
     span_id_col,
@@ -130,8 +129,11 @@ class Budget(Base, TimestampMixin):
     scope: Mapped[BudgetScope] = mapped_column(pg_enum(BudgetScope, "budget_scope"))
     scope_ref: Mapped[str | None] = mapped_column(sa.String(255), nullable=True)
     period: Mapped[BudgetPeriod] = mapped_column(pg_enum(BudgetPeriod, "budget_period"))
-    limit_usd: Mapped[money]
-    consumed_usd: Mapped[money] = mapped_column(server_default=sa.text("0"))
+    limit_usd: Mapped[cost_amount]
+    consumed_usd: Mapped[cost_amount] = mapped_column(server_default=sa.text("0"))
+    """`NUMERIC(12, 6)`, matching `cost_entries.amount_usd` rather than the two-decimal
+    money vocabulary used for pipeline figures. A budget that cannot represent the
+    granularity of the costs charged against it silently discards them (migration 0007)."""
     hard_stop: Mapped[bool] = mapped_column(sa.Boolean, server_default=sa.true())
 
     __table_args__ = (
