@@ -82,3 +82,30 @@ Sooner, if either of two things happens: a Session 3 or 4 run becomes long enoug
 losing it to a crash is expensive, or LangGraph 1.x checkpoint semantics turn out to
 conflict with our transition table in a way that makes the one-directional reconciliation
 in ADR-0002 rule 2 untrue.
+
+
+---
+
+## Amendment, 2026-08-08 (Session 6)
+
+**Status: still Accepted. Not superseded.**
+
+This ADR's "revisit when" trigger was *a human approval genuinely has to survive the
+process exiting*. Session 6 introduced exactly that, so the trigger fired and the
+decision was reviewed as promised.
+
+The review did **not** produce a durable framework checkpointer. It concluded that the
+requirement was already satisfied by **durable business state**: by the time the workflow
+pauses for approval, everything needed to resume -- interventions, policy evaluations,
+the approval request, and the action records already written -- is committed to
+PostgreSQL. `langgraph-checkpoint-postgres` was installed, evaluated, and **removed**;
+resume is proven by an integration test that destroys the original session and engine and
+resumes against a fresh one.
+
+So the original decision stands with its reasoning updated: `InMemorySaver` remains
+correct for this graph, because this graph has no mid-*analysis* interrupt. The human
+interrupt lives at the execution boundary, below the graph, where our own tables are the
+substrate.
+
+See [ADR-0016](0016-durable-business-state-resume.md), which also records the three
+conditions that would make a durable checkpointer the right answer after all.

@@ -1,6 +1,6 @@
 # Capability Matrix
 
-**Last updated:** 2026-08-06 — end of Session 5
+**Last updated:** 2026-08-08 — end of Session 6
 **Rule:** every capability in this repository carries exactly one of four statuses, and the
 status shown here matches what the code and the dashboard say (rules 5 and 19).
 
@@ -65,12 +65,24 @@ status shown here matches what the code and the dashboard say (rules 5 and 19).
 > and no numbers at all. `import-linter` R3 forbids `analytics/` from importing
 > `intelligence/` or `agents/`, so a model cannot influence the ranking even by accident.
 >
-> **Nothing executes.** An ALLOW in Session 5 is a recorded decision, not an action. The
-> four write tools remain unwired from the graph, `run_investigation` still binds no
-> policy engine, and `action_records` is empty — asserted by a test, not assumed.
+> **As of Session 6 the system executes — and only what was authorised.** A Tier 1 CRM
+> task runs automatically; a Tier 2 email **draft** runs only after a person approves.
+> Every executed result carries `integration_status = "SIMULATED"`. Nothing is ever sent:
+> there is no `messaging_send_email` tool and no send method on the messaging port.
 >
-> **No execution, no retries, no approval UI, no cost tracking, and no dashboard
-> exists.**
+> **Resume is application-level, over persisted business state — not LangGraph durable
+> interrupt/resume.** There is no `interrupt()` and no `PostgresSaver`; the dependency was
+> installed, evaluated, and removed. Proven by a test that destroys the session and engine
+> and resumes against a fresh one (ADR-0016). `InMemorySaver` remains for the analytical
+> graph, and ADR-0012 is **amended, not superseded**.
+>
+> **Exactly-once is NOT claimed.** At-least-once with an explicit `INDETERMINATE` state
+> that **requires human reconciliation**, for which no tooling exists yet (ADR-0017).
+>
+> **Approvals are not authenticated.** `--as` is a claimed identity, there is no auth
+> anywhere, and there is deliberately no HTTP approval endpoint (ADR-0018).
+>
+> **No cost tracking, no evaluation, and no dashboard exists.**
 
 ---
 
@@ -86,7 +98,11 @@ status shown here matches what the code and the dashboard say (rules 5 and 19).
 | **Simulated adapters (6 ports)** | **SIMULATED** | 4 — all declare `INTEGRATION_STATUS = "SIMULATED"`; an undeclared module raises |
 | **Tool-call ledger** | **IMPLEMENTED** | 4 — a row for success, typed error, **and policy denial**; trace + span correlated |
 | **Policy gate on write tools** | **IMPLEMENTED** | 4 — 4 write tools; no engine bound → raises; a denied write never reaches its adapter |
-| **Write execution from the graph** | **NOT WIRED** | 4–5 — write tools registered and now genuinely policy-classified, but `run_investigation` still binds **no policy engine** and nothing acts on a decision. Session 6 |
+| **Write execution** | **IMPLEMENTED** (SIMULATED effects) | 6 — `crm_create_task` after ALLOW, `messaging_create_email_draft` after approval. The investigation client still binds **no** policy engine; only the execution client binds one |
+| **`crm_update_opportunity` execution** | **NOT WIRED** | Registered, policy-classified, tested — nothing routes to it |
+| **Idempotent execution** | **IMPLEMENTED** | 6 — key claimed before the effect; `UNIQUE` constraint is the lock. **At-least-once, not exactly-once** |
+| **Retry engine** | **IMPLEMENTED** | 6 — `RATE_LIMITED` and `ADAPTER_ERROR` only, max 3, deterministic backoff, every attempt in `tool_calls` |
+| **`INDETERMINATE` reconciliation** | **NOT BUILT** | The state is recorded; resolving it is manual and untooled (ADR-0017) |
 | CRM adapter | **SIMULATED** | 4 — fixture-backed; real HubSpot/Salesforce is ROADMAP |
 | Product-usage adapter | **SIMULATED** | 4 — real warehouse/Segment is ROADMAP |
 | Engagement adapter | **SIMULATED** | 4 — real Gmail/Outlook is ROADMAP |
@@ -183,8 +199,9 @@ They are counted by the registry and excluded from execution by `implemented_det
 |---|---|---|
 | LangGraph state machine | **IMPLEMENTED** | 3, extended 5 — **6 nodes**; graph ends at `evaluate_policy` |
 | Persisted state transitions | **IMPLEMENTED** | 3 — written before the next node runs |
-| Checkpoint and resume | SCAFFOLDED | `InMemorySaver` only (ADR-0012); durable saver in 6 |
-| Human-in-the-loop interrupt | SCAFFOLDED | 6 |
+| **Approval pause and resume** | **IMPLEMENTED** | 6 — over durable business tables, restart-proven (ADR-0016) |
+| Durable framework checkpointer | **NOT ADOPTED** | Evaluated in 6 and rejected; `InMemorySaver` retained (ADR-0012 amended, ADR-0016) |
+| **Human-in-the-loop approval** | **IMPLEMENTED** | 6 — at the execution boundary, not as a graph interrupt |
 | LLM judge for subjective quality | ROADMAP | — |
 
 ---
@@ -211,7 +228,10 @@ They are counted by the registry and excluded from execution by `implemented_det
 | **Deterministic intervention ranking** | **IMPLEMENTED** | 5 — `analytics/intervention_scoring.py`; total ordering, tie-break fully determined |
 | **Approval requests** | **IMPLEMENTED** | 5 — created on REQUIRE_APPROVAL, with `expires_at`; **expiry is evaluated on read**, so a lapsed request cannot authorise anything |
 | **No self-approval** | **IMPLEMENTED** | 5 — the requesting actor cannot decide; enforced in `governance/`, not in a route |
-| **Approval UI and endpoints** | SCAFFOLDED | 6 — approving something currently requires calling Python |
+| **Approval CLI** | **IMPLEMENTED** | 6 — `make approvals`, `rs approve/reject APR-001 --as <actor>` |
+| **Authenticated approval identity** | **NOT A CAPABILITY** | `--as` is *claimed*, never verified. No auth exists (ADR-0018) |
+| **Approval HTTP endpoint** | **DELIBERATELY ABSENT** | An unauthenticated one would look like a control while being none. Session 9 |
+| Approval UI | SCAFFOLDED | 9 |
 | Approval inbox (UI) | SCAFFOLDED | 9 |
 | Delegation / role-based approval | ROADMAP | — |
 

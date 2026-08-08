@@ -1,8 +1,8 @@
 # Project Status
 
-**Last updated:** 2026-08-06
-**Current milestone:** Session 5 — Strategy and policy ✅ **COMPLETE**
-**Next milestone:** Session 6 — Execution and audit (awaiting approval)
+**Last updated:** 2026-08-08
+**Current milestone:** Session 6 — Execution and audit ✅ **COMPLETE**
+**Next milestone:** Session 7 — Cost governance (awaiting approval)
 
 ---
 
@@ -17,7 +17,7 @@ figures did not move by a cent.
 | Question | Answer |
 |---|---|
 | Can you run it? | Yes — `make setup && make up && make migrate && make seed && make ingest && make investigate` |
-| Can you run the tests? | Yes — **789 pass, 0 skipped, 0 xfailed** |
+| Can you run the tests? | Yes — **838 pass, 0 skipped, 0 xfailed** |
 | Does detection work? | Yes — 1 signal across 15 opportunities, `INC-001` at `HIGH` |
 | Does the investigation work? | Yes — **6 nodes, 7 transitions**, 6 evidence items, 2 hypotheses, 3 ranked interventions |
 | **Is the MCP server real?** | **Yes.** 15 tools, both transports. `make mcp` runs a spec-compliant stdio server; a test drives it as a real subprocess |
@@ -25,11 +25,14 @@ figures did not move by a cent.
 | Are the money figures right? | Yes — computed by `analytics/`, asserted to the cent |
 | **Is the policy engine real?** | **Yes.** Four tiers, default-deny, escalation on ambiguity, every decision recording its rules. A pure function (ADR-0015) |
 | Can the system write to anything? | **No.** 4 write tools are registered but unwired; the graph binds no policy engine, so a write would raise |
-| **Did anything execute?** | **No.** Session 5 decides and records. `action_records` is empty, and a test asserts it |
-| Is it replay-safe? | Ingestion yes. **Investigation replay is Session 6** and is refused with an explanation. |
+| **Does anything execute?** | **Yes, as of Session 6** — one SIMULATED CRM task automatically, one SIMULATED email **draft** after a human approves. Nothing is ever sent |
+| Does `make demo` work? | **Yes** — offline, `$0`, end to end, and it proves a re-run creates zero duplicate effects |
+| Is resume restart-safe? | Yes — proven by destroying the session and engine and resuming against a fresh one (ADR-0016) |
+| Is it exactly-once? | **No, and not claimed.** At-least-once with an explicit `INDETERMINATE` state requiring human reconciliation (ADR-0017) |
+| Are approvals authenticated? | **No.** `--as` is a *claimed* identity. There is no authentication anywhere (ADR-0018) |
+| Is it replay-safe? | Ingestion yes. Execution yes, by idempotency key. **Re-investigating a completed incident is still refused** — resume is not replay. |
 | **Has this system ever called a model?** | **No. Not once.** |
 | Are the LLM fixtures real? | **No — hand-authored, not recorded.** See ADR-0013. |
-| Does `make demo` work? | No. There is no execution, cost governance, or dashboard yet. |
 
 ---
 
@@ -170,6 +173,55 @@ A real subprocess over real pipes, not a simulation of a transport. 11 automated
 | 7 | Every decision records `matched_rules` and a readable reason | ✅ asserted on all three golden rows |
 | 8 | Approvals with `expires_at`; no self-approval | ✅ plus expiry evaluated **on read**, not by a sweeper |
 | 9 | Golden scenario: 1 ALLOW, 1 REQUIRE_APPROVAL, 1 DENY | ✅ and `action_records` is empty |
+
+### Session 6 — Execution and audit ✅
+
+**Delivered**
+
+| Group | Detail |
+|---|---|
+| `execution/` | `idempotency`, `authorization`, `executor`, `retry`, `arguments`, `service`, `policy_binding` |
+| `governance/approval_service.py` | Lookup by `APR-001`, effective-status listing |
+| `cli.py` | `approvals`, `approve`, `reject`, `resume` |
+| `scripts/demo.py` | `make demo` — the whole scenario, offline, `$0` |
+| `alembic/0005` | `approval_requests.requested_by` real column + backfill, `approval_ref` sequence |
+| `alembic/0006` | `authorized_by` FK, `approval_request_id`, `interventions.target_ref`, `ActionStatus.INDETERMINATE` |
+| `tests/` | **49 new — 838 total** |
+| Docs | **ADR-0016**, **ADR-0017**, **ADR-0018**, and an **amendment to ADR-0012** |
+
+**How resume actually works — and what it is not**
+
+> **This is not LangGraph durable interrupt/resume.** There is no `interrupt()` call and
+> no `PostgresSaver`. `langgraph-checkpoint-postgres` was installed, evaluated, and
+> **removed**.
+>
+> Approval resume is **application-level resume over persisted business state**. By the
+> time the workflow pauses, everything needed to continue is committed:
+> `workflow_runs`, `interventions`, `policy_evaluations`, `approval_requests`,
+> `action_records`, `workflow_transitions`, `audit_events`. `resume_investigation` reads
+> those rows and continues the execution phase. No investigation node re-runs, and no
+> model call site is exercised.
+>
+> `InMemorySaver` remains for the analytical graph, which has no human interrupt.
+> ADR-0012 is **amended, not superseded**: its "revisit when" trigger fired and the
+> review concluded durable *business* state was the right remedy. See ADR-0016.
+
+**Acceptance — all criteria met**
+
+| # | Criterion | Result |
+|---|---|---|
+| 1 | Tier 1 executes automatically | ✅ one `SUCCEEDED` action record, stamped `SIMULATED` |
+| 2 | Tier 2 pauses; nothing drafted before approval | ✅ run `INTERRUPTED`, incident `AWAITING_APPROVAL` |
+| 3 | Approve + resume creates exactly one unsent draft | ✅ |
+| 4 | Re-running produces zero new effects | ✅ stored results returned, adapter not called |
+| 5 | A denied action never executes, even with a forged **APPROVED** row | ✅ |
+| 6 | Execution re-evaluates policy; drift fails closed | ✅ `PolicyDriftError` |
+| 7 | Only `RATE_LIMITED` / `ADAPTER_ERROR` retry, max 3 | ✅ every attempt in `tool_calls` |
+| 8 | Resume survives the runtime being destroyed | ✅ new engine, new session, fresh connections |
+| 9 | Migrations 0005/0006 clean; no drift | ✅ |
+| 10 | Every execution result carries `integration_status = "SIMULATED"` | ✅ |
+| 11 | No `messaging_send_email`; `crm_update_opportunity` unreachable | ✅ |
+| 12 | `make demo` end to end, offline, `$0` | ✅ |
 
 ---
 
@@ -316,6 +368,44 @@ question. **No test was weakened, skipped, or xfailed to reach green.**
 
 ---
 
+## Deviations and findings from Session 6
+
+**The approved path had never been executed end to end, and it was broken.** A test
+found it: `authorize_execution` verified the approval and granted, then the MCP write
+gate **independently re-evaluated policy** — correctly, since it must never trust its
+caller — and answered `APPROVAL_REQUIRED` again, knowing nothing about approvals. A human
+could approve the draft and it would still be refused, forever. Fixed with a per-action
+`ApprovedActionPolicyEngine` that converts `REQUIRE_APPROVAL → ALLOW` **only** for the
+one tool the grant names, **never** converts `DENY`, and records the approving request id
+in `matched_rules`. The three-line "execution bypasses approval" flag would have deleted
+the guarantee instead of fixing it.
+
+**Resuming a completed run raised `IllegalTransitionError`.** Also found by a test.
+Repeating a resume is meant to be a safe no-op — the idempotency claims make it harmless
+— but the incident is terminal by then and the lifecycle rightly refuses to leave a
+terminal state. `_record_resume_outcome` now returns early.
+
+**The planned architecture changed after the plan.** Session 6 was approved with
+LangGraph `interrupt()` + `PostgresSaver`. Building the execution phase made it clear the
+checkpointer would carry state nothing reads, so the design was re-analysed and Option B
+adopted **with approval** rather than silently. The dependency was removed and ADR-0016
+records both the decision and the three triggers that would reverse it.
+
+**`make demo` cannot reset with `alembic downgrade base`.** Migrations 0004 and 0006
+deliberately refuse to downgrade a database holding a recorded refusal or an
+indeterminate action — exactly the state a previous demo leaves. Fighting those guards to
+reset a demo would mean weakening them, so the demo truncates instead.
+
+**Nine existing assertions changed across Sessions 5–6, none weakened.** In Session 6:
+`test_no_action_was_executed` and `test_the_allowed_intervention_was_still_not_executed`
+**inverted deliberately** (Session 5 asserted nothing executes; Session 6 executes) and
+were replaced by four stricter tests; `test_the_run_is_recorded_as_completed` became
+`..._paused_awaiting_approval`; and the incident end-state moved from `ANALYZED` to
+`AWAITING_APPROVAL`, with the full lifecycle walk asserted rather than the end state
+alone.
+
+---
+
 ## Deviations and findings from Session 5
 
 **A refused proposal had nowhere to live.** `interventions.action_type` and
@@ -364,18 +454,23 @@ interrupts); Session 6 changes that and ADR-0012 says so.
 **Prompt quality is untested.** The prompts are reasonable and the framing is
 deliberate, but no live response has ever been evaluated against them.
 
-**Nothing executes.** The policy engine is real and its decisions are recorded, but an
-ALLOW causes nothing to happen. The four write tools are still unwired from the graph and
-`action_records` is empty — asserted by a test rather than assumed.
+**Exactly-once is not claimed.** Execution is **at-least-once** with an explicit
+`INDETERMINATE` state: a claim found still `EXECUTING` on a later attempt means the
+process died mid-effect, and the outcome is genuinely unknown. It is recorded as unknown
+rather than guessed, and **requires human reconciliation** — for which there is no tooling
+yet (ADR-0017).
 
-**Approvals have no UI and no endpoints.** `governance/approvals.py` is reachable from
-tests and from persistence, and nowhere else. Approving something requires calling
-Python. That is Session 6.
+**Approvals are not authenticated.** `--as` is a *claimed* identity. There is no
+authentication anywhere in this system; anyone who can run the CLI can claim any actor.
+Self-approval prevention stops an accident, not an impersonation. There is deliberately
+**no HTTP approval endpoint** — an unauthenticated one would look like a control while
+being none (ADR-0018).
 
-**`approval_requests` has no `requested_by` column.** The requesting actor is stored in
-`decision_note` as `requested_by=<actor>`, and self-approval rejection reads it back from
-there. It works and it is tested, but it is a workaround; the column belongs in the
-schema. Recorded as an accepted limitation in ADR-0015.
+**Two of four write tools remain unreachable.** `crm_update_opportunity` is registered,
+policy-classified, and tested, but nothing routes to it. `messaging_send_email` does not
+exist and `MessagingPort` has no send method.
+
+**Approvals have no UI.** The CLI is the whole interface. That is Session 9.
 
 **The scoring bands are heuristics, and the claim for them is narrow.** They are not
 calibrated against historical outcomes — no such dataset exists for a synthetic account.
@@ -410,7 +505,7 @@ uv run alembic check               # no drift
 
 ---
 
-## Next milestone — Session 6: Execution and audit
+## Next milestone — Session 7: Cost governance
 
 **Objective.** Carry out what the policy layer approved, idempotently, with a durable
 checkpointer and a real human-in-the-loop interrupt.

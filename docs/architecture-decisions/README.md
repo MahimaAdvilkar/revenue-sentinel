@@ -21,10 +21,13 @@ too — an ADR is where tribal knowledge goes to become reviewable.
 | [0009](0009-synchronous-persistence.md) | Synchronous SQLAlchemy for persistence | Accepted | 2026-08-02 |
 | [0010](0010-enforcing-no-any-by-ast-check.md) | "Zero `Any`" is enforced by an AST check | Accepted | 2026-08-02 |
 | [0011](0011-incident-severity-bands.md) | Incident severity is banded weighted pipeline value | Accepted | 2026-08-03 |
-| [0012](0012-in-memory-checkpointer.md) | `InMemorySaver` in Session 3; durable checkpointer in Session 6 | Accepted | 2026-08-04 |
+| [0012](0012-in-memory-checkpointer.md) | `InMemorySaver` in Session 3 | Accepted (**amended** by [0016](0016-durable-business-state-resume.md)) | 2026-08-04 |
 | [0013](0013-hand-authored-llm-fixtures.md) | Hand-authored LLM fixtures as the Session 3 bootstrap | Accepted | 2026-08-04 |
 | [0014](0014-sync-async-mcp-boundary.md) | The sync/async boundary sits inside `mcp/client.py` | Accepted | 2026-08-05 |
 | [0015](0015-policy-as-a-pure-function.md) | Policy is a pure function over a versioned rule set | Accepted | 2026-08-06 |
+| [0016](0016-durable-business-state-resume.md) | Durable business-state resume, not framework checkpoints | Accepted | 2026-08-08 |
+| [0017](0017-idempotency-at-least-once.md) | Idempotency by claimed key; at-least-once with an explicit unknown | Accepted | 2026-08-08 |
+| [0018](0018-claimed-identity-no-authentication.md) | Approval identity is claimed, not authenticated | Accepted | 2026-08-08 |
 
 ---
 

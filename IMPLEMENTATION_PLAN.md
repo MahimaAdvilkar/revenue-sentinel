@@ -282,7 +282,23 @@ SIMULATED. `$0` spent.
 
 ---
 
-## Session 6 — Execution and audit
+## Session 6 — Execution and audit ✅ COMPLETE
+
+**Outcome.** **838 tests pass (49 new).** ADRs 0016–0018 added and ADR-0012 amended.
+Migrations `0005` and `0006`. `make demo` runs the whole scenario offline for `$0`.
+
+**Deviation from the approved plan, taken with approval:** LangGraph `interrupt()` and
+`PostgresSaver` were **not** adopted. Building the execution phase showed the checkpointer
+would carry state nothing reads — by the time the workflow pauses, everything needed to
+resume is already committed to business tables. The dependency was installed, evaluated,
+and removed; ADR-0016 records the analysis and the three triggers that would reverse it.
+**This is application-level resume, not LangGraph durable interrupt/resume.**
+
+**Also true:** exactly-once is not claimed (at-least-once with an explicit
+`INDETERMINATE` state); approvals are CLI-only with a *claimed* identity and no
+authentication; `crm_update_opportunity` stays unreachable; `messaging_send_email` does
+not exist; every executed result is SIMULATED.
+
 
 **Objective.** Close the loop — actions actually happen, exactly once, with a full trail.
 

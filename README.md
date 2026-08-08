@@ -10,13 +10,13 @@ cost, and evaluates its own behaviour.
 
 ## ⚠️ Current status — read this first
 
-> **Session 5 of 11 is complete: detection, investigation, strategy and policy run —
+> **Session 6 of 11 is complete: detect, investigate, decide, approve, and execute —
 > offline and for free.**
 >
 > `make investigate INCIDENT=INC-001` produces a plan, six evidence items, two hypotheses
 > each citing real evidence, **$108,000 weighted / $32,130 at risk**, and three ranked
 > interventions carrying **one ALLOW, one REQUIRE_APPROVAL and one DENY** — with no API key
-> and no network. Verified by **789 passing tests**.
+> and no network. Verified by **838 passing tests**.
 >
 > **The GTM MCP server is real.** 15 narrow, strictly-typed tools; no `run_sql`, no
 > `http_request`. Two transports, both IMPLEMENTED: the in-process client the graph and
@@ -39,14 +39,20 @@ cost, and evaluates its own behaviour.
 > access to model-written text (ADR-0015). The model may *propose* sending an email
 > directly; the system refuses and records the refusal.
 >
-> **Nothing executes.** An ALLOW is a recorded decision, not an action. The four write
-> tools are registered and policy-gated but **not wired into the graph**, and none has
-> ever been executed. There is no `messaging_send_email` tool and no send method on the
-> messaging port.
+> **It executes — and only what was authorised.** `make demo` runs the whole scenario
+> offline: a Tier 1 CRM task executes automatically, a Tier 2 email **draft** pauses for a
+> person, and resuming after approval creates exactly one unsent draft. Re-running creates
+> **zero** duplicate effects. Every result is stamped `SIMULATED`, and nothing is ever
+> sent — there is no `messaging_send_email` tool and no send method on the messaging port.
 >
-> What does not exist yet: **execution, retries, the approval UI, cost governance, and the
-> dashboard.** `make demo` does not work. See [`PROJECT_STATUS.md`](PROJECT_STATUS.md) for
-> the precise state.
+> **Three things it does not claim.** Resume is *application-level over business tables*,
+> not LangGraph durable interrupt/resume (ADR-0016). Execution is **at-least-once**, not
+> exactly-once — an interrupted attempt is recorded `INDETERMINATE` and needs a human
+> (ADR-0017). And approvals are **not authenticated**: `--as` is a claimed identity, there
+> is no auth anywhere, and there is deliberately no HTTP approval endpoint (ADR-0018).
+>
+> What does not exist yet: **cost governance, evaluation, and the dashboard.** See
+> [`PROJECT_STATUS.md`](PROJECT_STATUS.md) for the precise state.
 >
 > **All integrations are SIMULATED by design.** No real HubSpot, Salesforce, Gmail, Slack,
 > customer, or employer data is connected — now or during the initial build. Every
@@ -172,9 +178,12 @@ make migrate            # 29 tables, 27 native enum types
 make seed               # 92 deterministic rows, all is_simulated = true
 make ingest             # detect signals and open incidents (SIMULATED source feed)
 make investigate        # run the investigation graph offline (INCIDENT=INC-001)
-make check              # lint, format, mypy --strict, boundaries, 789 tests
+make check              # lint, format, mypy --strict, boundaries, 838 tests
 make api                # then: curl localhost:8000/incidents/INC-001
 make mcp                # the GTM MCP server over stdio (SIMULATED adapters)
+make demo               # the whole scenario end to end — offline, $0, resets local data
+make approvals          # list pending approvals
+
 ```
 
 Confirm the golden scenario landed:
@@ -186,7 +195,7 @@ docker compose exec postgres psql -U sentinel -d revenue_sentinel \
 ```
 
 **Not yet functional** — these `Makefile` targets are declared and become real later:
-`make demo` (Session 6), `make eval` (8), `make web` (9). `make record` works but makes
+`make eval` (Session 8), `make web` (9). `make record` works but makes
 billable API calls and **has never been run**.
 
 **Prerequisites:** [`uv`](https://docs.astral.sh/uv/), Docker with Compose, and Node 22+
