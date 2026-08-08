@@ -188,6 +188,21 @@ name = "R4 execution/ acts only through mcp/, never on an adapter directly"
 type = "forbidden"
 source_modules = ["revenue_sentinel.execution"]
 forbidden_modules = ["revenue_sentinel.integrations"]
+# The rule is "never on an adapter *directly*". `execution/` reaches adapters through
+# `mcp/` -- that routing is the architecture, and `mcp/` legitimately imports
+# `integrations/`, so every execution->integrations path is indirect through the layer
+# that is supposed to mediate it. Without this flag the contract forbids the design it
+# exists to require. It was vacuous until Session 6 gave `execution/` any content, so
+# this is the first time it had to say what it meant.
+#
+# import-linter cannot express "indirect only via mcp/" -- `allow_indirect_imports`
+# permits *any* indirect path, which is weaker than the real invariant. Two additional
+# checks close that gap, and both fail loudly rather than silently:
+#   * R4a below forbids execution/ -> integrations/ with no indirection allowed, by
+#     routing the check through a module set that excludes mcp/.
+#   * tests/unit/test_boundaries.py parses execution/*.py and fails on any direct
+#     `integrations` import or adapter construction.
+allow_indirect_imports = true
 
 [[tool.importlinter.contracts]]
 name = "R5 agents/ are pure functions of state — no persistence"

@@ -17,7 +17,13 @@ from sqlalchemy.orm import Session
 from revenue_sentinel.core.config import Settings
 from revenue_sentinel.db.models import governance as gov_orm
 from revenue_sentinel.db.models import investigation as orm
-from revenue_sentinel.domain.enums import ApprovalStatus, PolicyDecision, ProposedAction
+from revenue_sentinel.domain.enums import (
+    ActionStatus,
+    ActionType,
+    ApprovalStatus,
+    PolicyDecision,
+    ProposedAction,
+)
 from revenue_sentinel.governance import approvals
 from revenue_sentinel.orchestration import runner
 
@@ -64,7 +70,7 @@ def test_a_lapsed_request_reads_as_expired_before_any_sweeper_runs(
 
 def test_self_approval_is_refused(approval: gov_orm.ApprovalRequest, detected: Session) -> None:
     """The actor that asked cannot be the actor that decides."""
-    assert approvals.requested_by(approval) == REQUESTER
+    assert approval.requested_by == REQUESTER
 
     with pytest.raises(approvals.SelfApprovalError):
         approvals.decide(
@@ -238,34 +244,64 @@ def test_only_the_approval_tier_creates_an_approval_request(
 # ---------------------------------------------------------------------------
 # Nothing executes
 # ---------------------------------------------------------------------------
-def test_no_action_was_executed(
+def test_only_the_allowed_action_executed(
     investigated: runner.InvestigationOutcome, detected: Session
 ) -> None:
-    """Session 5 decides; Session 6 acts. An `action_records` row would mean the
-    boundary had already been crossed."""
-    actions = detected.scalars(
+    """Session 5 asserted nothing executed. Session 6 executes -- but only the ALLOW.
+
+    This assertion **inverted deliberately**, and it is replaced by a stricter set: one
+    action record, for the tier-1 task, stamped SIMULATED. The tier-2 draft is still
+    waiting on a person and the tier-3 proposal will never run at all.
+    """
+    records = detected.scalars(
         sa.select(gov_orm.ActionRecord).where(gov_orm.ActionRecord.run_id == investigated.run_id)
     ).all()
 
-    assert actions == []
+    assert len(records) == 1
+    assert records[0].action_type is ActionType.CRM_TASK
+    assert records[0].status is ActionStatus.SUCCEEDED
+    assert (records[0].result or {}).get("integration_status") == "SIMULATED"
 
 
-def test_the_allowed_intervention_was_still_not_executed(
+def test_the_denied_action_left_no_action_record(
     investigated: runner.InvestigationOutcome, detected: Session
 ) -> None:
-    """Even ALLOW does nothing this session. Permission is not execution."""
-    allowed = detected.scalar(
-        sa.select(sa.func.count())
-        .select_from(gov_orm.PolicyEvaluation)
-        .join(orm.Intervention, orm.Intervention.id == gov_orm.PolicyEvaluation.intervention_id)
-        .where(
-            orm.Intervention.run_id == investigated.run_id,
-            gov_orm.PolicyEvaluation.decision == PolicyDecision.ALLOW,
-        )
+    """A denial is recorded as a decision and never as an attempt."""
+    executed_types = set(
+        detected.scalars(
+            sa.select(gov_orm.ActionRecord.action_type).where(
+                gov_orm.ActionRecord.run_id == investigated.run_id
+            )
+        ).all()
     )
 
-    assert allowed == 1
-    assert detected.scalar(sa.select(sa.func.count()).select_from(gov_orm.ActionRecord)) == 0
+    assert ActionType.EMAIL_DRAFT not in executed_types
+    assert "send_email_direct" not in {item.value for item in executed_types}
+
+
+def test_the_run_paused_rather_than_drafting_without_approval(
+    investigated: runner.InvestigationOutcome,
+) -> None:
+    """Nothing is drafted before a person approves it."""
+    assert not investigated.execution.is_complete
+    assert len(investigated.execution.awaiting_approval) == 1
+    assert len(investigated.execution.performed) == 1
+
+
+def test_every_action_record_traces_to_its_authorisation(
+    investigated: runner.InvestigationOutcome, detected: Session
+) -> None:
+    """`authorized_by` is a real foreign key as of migration 0006."""
+    record = detected.scalar(
+        sa.select(gov_orm.ActionRecord).where(gov_orm.ActionRecord.run_id == investigated.run_id)
+    )
+    assert record is not None
+
+    evaluation = detected.get(gov_orm.PolicyEvaluation, record.authorized_by)
+    assert evaluation is not None
+    assert evaluation.decision is PolicyDecision.ALLOW
+    # Tier 1 needed no person, so there is no approval attached. That NULL is meaningful.
+    assert record.approval_request_id is None
 
 
 def test_no_tool_call_was_made_by_the_policy_or_strategy_nodes(

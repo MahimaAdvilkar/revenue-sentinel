@@ -66,3 +66,91 @@ def test_analytics_never_imports_the_model_layer() -> None:
                     assert not alias.name.startswith(forbidden), (
                         f"{path.name}:{node.lineno} imports {alias.name}"
                     )
+
+
+# ---------------------------------------------------------------------------
+# R4, stated precisely -- what import-linter cannot express
+# ---------------------------------------------------------------------------
+EXECUTION_PACKAGE = Path("src/revenue_sentinel/execution")
+
+ADAPTER_CONSTRUCTORS = frozenset(
+    {
+        "SimulatedCrmAdapter",
+        "SimulatedProductAdapter",
+        "SimulatedEngagementAdapter",
+        "SimulatedSupportAdapter",
+        "SimulatedEnrichmentAdapter",
+        "SimulatedMessagingAdapter",
+        "build_simulated_adapters",
+    }
+)
+
+
+def _execution_modules() -> list[Path]:
+    modules = sorted(EXECUTION_PACKAGE.glob("*.py"))
+    assert modules, "execution/ has no modules; this test would pass vacuously"
+    return modules
+
+
+def test_execution_never_imports_integrations_directly() -> None:
+    """The real invariant behind R4.
+
+    `allow_indirect_imports = true` in the R4 contract permits *any* indirect path, not
+    only the one through `mcp/` -- which is weaker than what the architecture requires.
+    This closes that gap by parsing the source: a direct `integrations` import in
+    `execution/` fails here even though import-linter would let it through as long as
+    some indirect path also existed.
+    """
+    offenders: list[str] = []
+
+    for module in _execution_modules():
+        tree = ast.parse(module.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom) and node.module and "integrations" in node.module:
+                offenders.append(f"{module.name}: from {node.module}")
+            elif isinstance(node, ast.Import):
+                offenders.extend(
+                    f"{module.name}: import {alias.name}"
+                    for alias in node.names
+                    if "integrations" in alias.name
+                )
+
+    assert not offenders, (
+        "execution/ must reach adapters through mcp/, never directly: " + "; ".join(offenders)
+    )
+
+
+def test_execution_never_constructs_an_adapter() -> None:
+    """Importing is not the only way to touch an adapter -- calling one counts too.
+
+    An adapter reached by any route other than a policy-gated MCP tool call is an
+    external effect with no recorded decision behind it, which is the single thing the
+    policy layer exists to prevent.
+    """
+    offenders: list[str] = []
+
+    for module in _execution_modules():
+        tree = ast.parse(module.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            called = getattr(node.func, "id", None) or getattr(node.func, "attr", None)
+            if called in ADAPTER_CONSTRUCTORS:
+                offenders.append(f"{module.name}: {called}()")
+
+    assert not offenders, "execution/ must not construct adapters: " + "; ".join(offenders)
+
+
+def test_execution_reaches_tools_only_through_the_mcp_client() -> None:
+    """The positive half: the only sanctioned route is the client port.
+
+    Stated as an assertion rather than left implicit, so a future module that grew its
+    own path to a tool would have to delete this test to get green.
+    """
+    importing_mcp = [
+        module.name
+        for module in _execution_modules()
+        if "revenue_sentinel.mcp" in module.read_text(encoding="utf-8")
+    ]
+
+    assert importing_mcp, "no execution module reaches mcp/; the routing claim is vacuous"

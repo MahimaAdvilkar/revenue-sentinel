@@ -107,15 +107,20 @@ def test_the_impact_figures_match_the_demo_document(
     assert impact.at_risk_value == Decimal("32130.00")
 
 
-def test_the_run_is_recorded_as_completed(
+def test_the_run_is_recorded_as_paused_awaiting_approval(
     investigated: runner.InvestigationOutcome, detected: Session
 ) -> None:
     run = detected.get(workflow_orm.WorkflowRun, investigated.run_id)
 
     assert run is not None
-    assert run.status is WorkflowStatus.COMPLETED
+    # Session 6: the run pauses rather than completing, because the tier-2 email draft
+    # needs a person. `INTERRUPTED` with everything committed is what makes it resumable.
+    assert run.status is WorkflowStatus.INTERRUPTED
     assert run.graph_version == "investigation/v2"
-    assert run.ended_at is not None
+    # `ended_at` stays NULL while paused. A run with an end time that has not ended
+    # would make "how long did this take?" unanswerable for every interrupted run.
+    assert run.ended_at is None
+    assert run.current_node == runner.EXECUTION_NODE
 
 
 # ---------------------------------------------------------------------------
@@ -354,7 +359,9 @@ def test_the_incident_advances_to_analyzed(
         sa.select(workflow_orm.Incident).where(workflow_orm.Incident.incident_ref == "INC-001")
     )
     assert incident is not None
-    assert incident.status is IncidentStatus.ANALYZED
+    # The incident passes *through* ANALYZED and stops at AWAITING_APPROVAL: the audit
+    # trail below asserts the full walk rather than only the end state.
+    assert incident.status is IncidentStatus.AWAITING_APPROVAL
 
 
 def test_each_lifecycle_step_is_audited(
