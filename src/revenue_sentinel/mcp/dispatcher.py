@@ -20,6 +20,7 @@ from pydantic import ValidationError
 
 from revenue_sentinel.core.logging import get_logger
 from revenue_sentinel.core.types import JSONObject
+from revenue_sentinel.cost.ledger import record_tool_cost
 from revenue_sentinel.domain.enums import ToolCallStatus
 from revenue_sentinel.integrations.simulated.behaviour import InjectedFailureError
 from revenue_sentinel.integrations.status import IntegrationStatus, status_of
@@ -125,7 +126,7 @@ def dispatch(
     duration_ms = int((time.perf_counter() - started) * 1000)
 
     if context.run_id is not None:
-        record_tool_call(
+        tool_call = record_tool_call(
             context.session,
             run_id=context.run_id,
             node_name=context.node_name,
@@ -135,6 +136,15 @@ def dispatch(
             status=status,
             duration_ms=duration_ms,
             ordinal=ordinal,
+        )
+        # Always $0.000000 in v1 -- every adapter is SIMULATED and bills nothing. The
+        # row is written anyway: an absent entry would be ambiguous between "free" and
+        # "not recorded", which is the ambiguity a ledger exists to remove.
+        record_tool_cost(
+            context.session,
+            run_id=context.run_id,
+            tool_call_id=tool_call.id,
+            occurred_at=context.occurred_at,
         )
 
     logger.info("tool_call", tool=tool_name, status=status.value, duration_ms=duration_ms)

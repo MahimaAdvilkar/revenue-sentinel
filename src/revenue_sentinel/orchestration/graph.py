@@ -28,6 +28,7 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 from sqlalchemy.orm import Session
 
+from revenue_sentinel.cost import ledger as cost_ledger
 from revenue_sentinel.orchestration import persistence
 from revenue_sentinel.orchestration.nodes import (
     EVIDENCE_NODE,
@@ -115,6 +116,14 @@ def _instrument(
                 response=result.llm_response,
             )
             model_call_id = model_call.id
+            # Priced from the call's **real** token counts. In fixture mode those are
+            # zero, so the entry is $0.000000 -- a true figure, not a placeholder.
+            cost_ledger.record_model_cost(
+                session,
+                run_id=current.run_id,
+                model_call=model_call,
+                occurred_at=current.evaluated_at,
+            )
 
         persistence.record_agent_decision(
             session,

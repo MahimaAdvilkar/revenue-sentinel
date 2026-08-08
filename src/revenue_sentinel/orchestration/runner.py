@@ -29,6 +29,8 @@ from revenue_sentinel.core.errors import (
 )
 from revenue_sentinel.core.ids import new_id
 from revenue_sentinel.core.logging import get_logger
+from revenue_sentinel.cost.client import BudgetedLLMClient
+from revenue_sentinel.cost.governor import CostGovernor
 from revenue_sentinel.db.models import gtm as gtm_orm
 from revenue_sentinel.db.models import workflow as workflow_orm
 from revenue_sentinel.db.repositories import AccountRepository, OpportunityRepository
@@ -204,7 +206,12 @@ def run_investigation(
         policy=None,
     )
     context = NodeContext(
-        llm=build_llm_client(settings),
+        # Admission control sits in front of the client, so BUDGET_EXCEEDED is raised
+        # before any completion call. Fixture mode passes through it unchanged.
+        llm=BudgetedLLMClient(
+            build_llm_client(settings),
+            CostGovernor(session, run_id=run.id, incident_ref=incident_ref),
+        ),
         evidence_source=McpEvidenceSource(InProcessMcpClient(tool_context), session),
         model_id=settings.model_default,
         effort=settings.model_effort_default,
