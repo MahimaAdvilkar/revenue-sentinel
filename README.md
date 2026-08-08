@@ -10,13 +10,13 @@ cost, and evaluates its own behaviour.
 
 ## ⚠️ Current status — read this first
 
-> **Session 7 of 11 is complete: detect, investigate, decide, approve, execute, and
-> account for every cent — offline and for free.**
+> **Session 8 of 11 is complete: detect, investigate, decide, approve, execute, account
+> for every cent — and evaluate itself. Offline and for free.**
 >
 > `make investigate INCIDENT=INC-001` produces a plan, six evidence items, two hypotheses
 > each citing real evidence, **$108,000 weighted / $32,130 at risk**, and three ranked
 > interventions carrying **one ALLOW, one REQUIRE_APPROVAL and one DENY** — with no API key
-> and no network. Verified by **895 passing tests**.
+> and no network. Verified by **950 passing tests**.
 >
 > **The GTM MCP server is real.** 15 narrow, strictly-typed tools; no `run_sql`, no
 > `http_request`. Two transports, both IMPLEMENTED: the in-process client the graph and
@@ -62,7 +62,18 @@ cost, and evaluates its own behaviour.
 > pre-call estimator is admission control, never billing truth. And the global budget is
 > not safe against two concurrent runs (ADR-0019).
 >
-> What does not exist yet: **evaluation and the dashboard.** See
+> **It grades itself, deterministically.** `make eval` reports 15/15 workflow checks,
+> 6/6 prompt-injection cases, and 5/5 policy-bypass checks — every one decided from
+> persisted rows, with **no LLM judge** and a cost of `$0.000000`. Each of the 15 checks
+> has a **negative test** proving it can fail, because a rubric nobody has seen fail is a
+> rubric nobody knows works.
+>
+> **What that does not claim.** One golden scenario measures no production precision,
+> recall, or intervention effectiveness, and nothing subjective is scored. "Contained" does
+> not mean the model obeyed — it means the payload could not escape its block, could not
+> authorise an action, and could not reach a capability that does not exist.
+>
+> What does not exist yet: **the dashboard.** See
 > [`PROJECT_STATUS.md`](PROJECT_STATUS.md) for the precise state.
 >
 > **All integrations are SIMULATED by design.** No real HubSpot, Salesforce, Gmail, Slack,
@@ -189,12 +200,13 @@ make migrate            # 29 tables, 27 native enum types
 make seed               # 92 deterministic rows, all is_simulated = true
 make ingest             # detect signals and open incidents (SIMULATED source feed)
 make investigate        # run the investigation graph offline (INCIDENT=INC-001)
-make check              # lint, format, mypy --strict, boundaries, 895 tests
+make check              # lint, format, mypy --strict, boundaries, 950 tests
 make api                # then: curl localhost:8000/incidents/INC-001
 make mcp                # the GTM MCP server over stdio (SIMULATED adapters)
 make demo               # the whole scenario end to end — offline, $0, resets local data
 make approvals          # list pending approvals
 uv run rs cost INC-001 --timeline   # cost ledger and trace-correlated timeline
+make eval               # deterministic self-evaluation — $0, no model consulted
 
 ```
 

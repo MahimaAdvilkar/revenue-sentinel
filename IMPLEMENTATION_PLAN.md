@@ -363,7 +363,21 @@ expensive. Pricing drift against the published table.
 
 ---
 
-## Session 8 — Evaluation and security
+## Session 8 — Evaluation ✅ COMPLETE
+
+**Outcome.** **950 tests pass (55 new).** ADR-0021 added. `make eval` reports workflow
+**15/15**, injection **6/6**, invariants **1/1**, bypass **5/5**, **LLM judge: NOT USED**,
+evaluation cost **$0.000000**. No migration was needed — `evaluation_runs` /
+`evaluation_results` already fit, with `suite_version` carrying the evaluator version.
+
+**The part worth defending:** every one of the 15 checks has a negative test. A rubric
+nobody has seen fail is a rubric nobody knows works. Where `UNIQUE` and foreign-key
+constraints make the strongest corruption unrepresentable, the test asserts the constraint
+rather than weakening it.
+
+**Not claimed:** one golden scenario measures no production precision, recall, or
+intervention effectiveness, and no subjective quality is scored.
+ and security
 
 **Objective.** Prove the system behaves correctly, and prove injection cannot escalate.
 

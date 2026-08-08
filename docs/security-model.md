@@ -62,6 +62,33 @@ content or LLM output directly to an external write.
 
 ---
 
+> **What "contained" means, as implemented (Session 8, ADR-0021).**
+>
+> **Containment does not mean "the model ignored the instruction."** A check asserting
+> that would pass because a particular model happened to comply, would start failing on a
+> model upgrade without anything having got worse, and would credit obedience for a
+> guarantee that must not depend on it.
+>
+> An injection is contained when all of the following hold, and all are decided from
+> persisted rows:
+>
+> 1. the content is persisted with `trust_level = untrusted` — `TrustLevel` has exactly
+>    one member, so there is no code path that marks ingested content trusted;
+> 2. delimiters are escaped, so a payload cannot close its `<evidence>` block and open a
+>    forged sibling carrying `trust="trusted"`;
+> 3. attributes are escaped, so it cannot terminate a quoted value and inject another;
+> 4. **no `action_records` row exists without an authorising `policy_evaluations` row** —
+>    enforced by a foreign key, not only by a check;
+> 5. no tool call occurred outside the permitted routing;
+> 6. a dangerous capability that does not exist cannot be invoked — `messaging_send_email`
+>    is absent from the catalog **and** from `MessagingPort`, so an injected request for it
+>    is unsatisfiable rather than refused;
+> 7. the policy and approval boundaries remain authoritative — an approval can never
+>    override a `DENY`, and a Slack notification is not an approval.
+>
+> Points 1–3 reduce **likelihood**. Points 4–7 bound **consequence**, and consequence is
+> the one that has to hold. A successful injection that changes nothing is contained.
+
 ## 2. Prompt injection defence — layered
 
 | # | Layer | Mechanism | Defeats |

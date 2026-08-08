@@ -1,8 +1,8 @@
 # Project Status
 
 **Last updated:** 2026-08-08
-**Current milestone:** Session 7 — Cost governance ✅ **COMPLETE**
-**Next milestone:** Session 8 — Evaluation (awaiting approval)
+**Current milestone:** Session 8 — Evaluation ✅ **COMPLETE**
+**Next milestone:** Session 9 — Dashboard (awaiting approval)
 
 ---
 
@@ -17,7 +17,7 @@ figures did not move by a cent.
 | Question | Answer |
 |---|---|
 | Can you run it? | Yes — `make setup && make up && make migrate && make seed && make ingest && make investigate` |
-| Can you run the tests? | Yes — **895 pass, 0 skipped, 0 xfailed** |
+| Can you run the tests? | Yes — **950 pass, 0 skipped, 0 xfailed** |
 | Does detection work? | Yes — 1 signal across 15 opportunities, `INC-001` at `HIGH` |
 | Does the investigation work? | Yes — **6 nodes, 7 transitions**, 6 evidence items, 2 hypotheses, 3 ranked interventions |
 | **Is the MCP server real?** | **Yes.** 15 tools, both transports. `make mcp` runs a spec-compliant stdio server; a test drives it as a real subprocess |
@@ -31,6 +31,8 @@ figures did not move by a cent.
 | Is it exactly-once? | **No, and not claimed.** At-least-once with an explicit `INDETERMINATE` state requiring human reconciliation (ADR-0017) |
 | Are approvals authenticated? | **No.** `--as` is a *claimed* identity. There is no authentication anywhere (ADR-0018) |
 | **Are budgets enforced?** | **Yes, before the spend.** `BUDGET_EXCEEDED` fires before the client is reached — proven by a counting fake that records zero calls (ADR-0019) |
+| **Does it evaluate itself?** | **Yes.** `make eval` — workflow 15/15, injection 6/6, invariants 1/1, bypass 5/5. Deterministic, `$0.000000`, **no LLM judge** |
+| Is the evaluator trustworthy? | Every one of the 15 checks has a **negative test** proving it can fail. A rubric nobody has seen fail is one nobody knows works |
 | What has it cost? | **$0.000000**, printed unrounded. Fixture mode consumes zero tokens, so that figure is the truth rather than a rounding |
 | Is it replay-safe? | Ingestion yes. Execution yes, by idempotency key. **Re-investigating a completed incident is still refused** — resume is not replay. |
 | **Has this system ever called a model?** | **No. Not once.** |
@@ -258,6 +260,40 @@ truth** — provider tokenization differs and only actual returned usage is reco
 And budgets are **not concurrency-safe across runs**: read-then-call is sound only
 because model calls are serialized within a run (ADR-0009). Two concurrent runs sharing a
 `GLOBAL` budget can race. The CLI and demo both print that caveat.
+
+### Session 8 — Evaluation ✅
+
+**Delivered**
+
+| Group | Detail |
+|---|---|
+| `evaluation/rubric.py` | 15 workflow checks, each decided from persisted rows |
+| `evaluation/security.py` | 6 named injection cases, 1 cross-cutting invariant, 5 bypass checks |
+| `evaluation/service.py` | evaluate → persist → render, one implementation |
+| `scripts/evaluate.py` | `make eval`, non-zero exit on failure |
+| `tests/evaluation/` | 55 tests — positives, the full negative corpus, append-only audit |
+| Docs | **ADR-0021** |
+
+**Result:** workflow rubric **15/15** · injection corpus **6/6** · security invariants
+**1/1** · policy bypass **5/5** · overall **PASS** · **LLM judge: NOT USED** · evaluation
+cost **$0.000000**.
+
+**Why this is worth trusting.** Every check has a negative test that breaks the property
+it guards and asserts the check fails — a check with an inverted comparison would sail
+through a green run otherwise. Where a schema constraint makes the strongest corruption
+**unrepresentable** (`UNIQUE (idempotency_key)`, the `authorized_by` foreign key,
+`hypothesis_evidence`'s keys), the test asserts the constraint and documents why, rather
+than weakening a real guarantee to manufacture a cosmetic failure.
+
+**Evaluation history is append-only.** A failed attempt is never overwritten by a later
+passing one — proven by corrupt → evaluate → repair → evaluate, with the failure still on
+the record.
+
+**What "contained" means.** Not "the model ignored the instruction" — that would pass
+because a model happened to comply and would break on an upgrade. Containment is
+structural: untrusted labelling, escaped delimiters and attributes, no unauthorised action
+record, no out-of-route tool call, and a dangerous capability that does not exist. See
+ADR-0021.
 
 ---
 
@@ -513,6 +549,15 @@ interrupts); Session 6 changes that and ADR-0012 says so.
 
 **Prompt quality is untested.** The prompts are reasonable and the framing is
 deliberate, but no live response has ever been evaluated against them.
+
+**One golden scenario measures no production accuracy.** The rubric proves the system
+does what it promised *on this run*. It says nothing about detector precision or recall,
+nothing about whether an intervention would work, and nothing about subjective quality —
+whether a hypothesis is insightful or a draft reads well. Generating more scenarios from
+the same generator would measure the generator.
+
+**There is no LLM judge, deliberately.** A hand-authored judge fixture grading output from
+hand-authored fixtures would be circular (ADR-0021).
 
 **No live API usage has ever been observed.** Every cost figure is $0.000000 because
 fixture mode consumes zero tokens — the arithmetic is proven, the provider's accounting is

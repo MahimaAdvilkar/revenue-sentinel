@@ -1,6 +1,6 @@
 # Capability Matrix
 
-**Last updated:** 2026-08-08 — end of Session 7
+**Last updated:** 2026-08-08 — end of Session 8
 **Rule:** every capability in this repository carries exactly one of four statuses, and the
 status shown here matches what the code and the dashboard say (rules 5 and 19).
 
@@ -96,7 +96,24 @@ status shown here matches what the code and the dashboard say (rules 5 and 19).
 > **The `GLOBAL` budget is not concurrency-safe.** Read-then-call is sound only because
 > model calls are serialized within a run; two concurrent runs can race (ADR-0019).
 >
-> **No evaluation framework and no dashboard exists.** OTLP export and Prometheus remain
+> **As of Session 8 the system evaluates itself, deterministically and for free.**
+> `make eval` reports workflow **15/15**, injection corpus **6/6**, security invariants
+> **1/1**, policy bypass **5/5**. Every check is decided from persisted rows, **no model is
+> consulted**, and evaluation costs `$0.000000` (ADR-0021).
+>
+> **Every one of the 15 workflow checks has a negative test** proving it can fail. Where a
+> schema constraint makes the strongest corruption unrepresentable, the test asserts the
+> constraint and says so rather than weakening it.
+>
+> **Evaluation history is append-only** — a failed attempt is never overwritten by a later
+> passing one.
+>
+> **"Contained" does not mean the model obeyed.** It means untrusted labelling, escaped
+> delimiters and attributes, no unauthorised action record, no out-of-route tool call, and
+> a dangerous capability that does not exist.
+>
+> **One golden scenario measures no production precision, recall, or effectiveness**, and
+> nothing here claims otherwise. No dashboard exists. OTLP export and Prometheus remain
 > ROADMAP.
 
 ---
@@ -217,7 +234,7 @@ They are counted by the registry and excluded from execution by `implemented_det
 | **Approval pause and resume** | **IMPLEMENTED** | 6 — over durable business tables, restart-proven (ADR-0016) |
 | Durable framework checkpointer | **NOT ADOPTED** | Evaluated in 6 and rejected; `InMemorySaver` retained (ADR-0012 amended, ADR-0016) |
 | **Human-in-the-loop approval** | **IMPLEMENTED** | 6 — at the execution boundary, not as a graph interrupt |
-| LLM judge for subjective quality | ROADMAP | — |
+| **LLM judge for subjective quality** | **ROADMAP — deliberately absent** | A hand-authored judge fixture grading hand-authored output would be circular (ADR-0021). Needs a real budget and a recorded judge configuration |
 
 ---
 
@@ -325,11 +342,14 @@ They are counted by the registry and excluded from execution by `implemented_det
 
 | Capability | Status | Session |
 |---|---|---|
-| Deterministic rubric harness | SCAFFOLDED | 8 |
-| 15 workflow rubric checks | SCAFFOLDED | 8 |
-| Prompt-injection corpus (6 cases) | SCAFFOLDED | 8 |
-| Policy-bypass tests | SCAFFOLDED | 8 |
-| Secret scanning | SCAFFOLDED | 8 |
+| **Deterministic rubric harness** | **IMPLEMENTED** | 8 — `make eval`, non-zero exit on failure, `$0.000000` |
+| **15 workflow rubric checks** | **IMPLEMENTED** | 8 — all passing, **each with a negative test** |
+| **Negative corpus** | **IMPLEMENTED** | 8 — proves the evaluator can fail; schema-prevented cases documented as such |
+| **Append-only evaluation history** | **IMPLEMENTED** | 8 — failed attempts preserved across later passes |
+| **Prompt-injection corpus (6 cases)** | **IMPLEMENTED** | 8 — containment defined structurally, never as model obedience |
+| **Untrusted-labelling invariant** | **IMPLEMENTED** | 8 — cross-cutting; reported separately so the corpus count stays 6 |
+| **Policy-bypass checks (5)** | **IMPLEMENTED** | 8 — a forged APPROVED row on a DENY still leaves no effect |
+| Secret scanning | **IMPLEMENTED** | CI job since Session 1; run on every push |
 | `import-linter` boundary enforcement | **IMPLEMENTED** | 1 — 6 contracts kept; asserted by the test suite as well as CI. Partly vacuous while the forbidden packages are empty; gains teeth in Sessions 2–6 |
 | "Zero `Any`" AST check (ADR-0010) | **IMPLEMENTED** | 1 — scans `domain/` and `analytics/` |
 | Wall-clock access check | **IMPLEMENTED** | 1 — proves only `SystemClock` reads the clock |

@@ -6,6 +6,32 @@ expands on Day 8 when the suite is built. Expansion points are marked ▸.
 
 ---
 
+> **Session 8 status — as built.**
+>
+> **IMPLEMENTED.** 15 deterministic workflow checks, each with a credible negative case
+> proving the check can fail. Six named prompt-injection cases. One cross-cutting
+> untrusted-labelling invariant, reported separately so the corpus count stays honest at
+> six. Five policy-bypass checks. Append-only `evaluation_runs` / `evaluation_results`
+> persistence — a failed attempt is never overwritten by a later passing one. `make eval`
+> with a deterministic reporter and a non-zero exit code on failure. **Evaluation costs
+> `$0.000000`: no check and no reporter consults a model** (ADR-0021).
+>
+> Current result: workflow rubric **15/15**, injection corpus **6/6**, security invariants
+> **1/1**, policy bypass **5/5**.
+>
+> **ROADMAP / UNMEASURED — and not claimed.**
+>
+> * **LLM judge.** Deliberately absent. A hand-authored judge fixture grading output from
+>   hand-authored fixtures would be circular (ADR-0021).
+> * **Detector precision and recall.** There is **one** hand-authored scenario. It measures
+>   nothing about production accuracy, and generating more from the same generator would
+>   measure the generator.
+> * **Intervention effectiveness.** Requires real outcome feedback, which does not exist.
+> * **Subjective content and message quality.** Whether a hypothesis is insightful or a
+>   draft reads well is invisible to this suite.
+> * **Production security effectiveness** beyond the deterministic invariants below.
+>   Containment is proven structurally, not by red-teaming a live model.
+
 ## 1. What we are evaluating
 
 Not "is the model good." **Did the workflow behave correctly?** Those are different
