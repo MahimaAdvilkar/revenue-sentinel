@@ -24,8 +24,11 @@ import sys
 import sqlalchemy as sa
 from sqlalchemy.orm import Session
 
+from revenue_sentinel.cli import CONCURRENCY_NOTE, render_cost_summary
 from revenue_sentinel.core.config import Settings, get_settings
 from revenue_sentinel.core.logging import configure_logging
+from revenue_sentinel.cost.summary import summarise_run
+from revenue_sentinel.cost.timeline import incident_timeline, traces_in
 from revenue_sentinel.db.models import governance as gov_orm
 from revenue_sentinel.db.models import investigation as inv_orm
 from revenue_sentinel.db.models import observability as obs_orm
@@ -212,6 +215,33 @@ def run(settings: Settings) -> int:
         print(f"  performed this pass: {len(again.performed)}   total action records: {total}")
 
     with session_scope(factory) as session:
+        heading("COST GOVERNANCE")
+        summary = summarise_run(session, run_id=run_id, incident_ref=INCIDENT)
+        for line in render_cost_summary(summary):
+            print(line)
+        print(f"  {CONCURRENCY_NOTE}")
+
+        print("\n  COST LEDGER")
+        for entry in session.scalars(
+            sa.select(obs_orm.CostEntry)
+            .where(obs_orm.CostEntry.run_id == run_id)
+            .order_by(obs_orm.CostEntry.recorded_at, obs_orm.CostEntry.cost_type)
+        ).all():
+            kind = "model" if entry.model_call_id is not None else "tool "
+            print(
+                f"    {kind}  ${entry.amount_usd}   {entry.cost_type.value:<18} "
+                f"{entry.pricing_version}"
+            )
+
+        print("\n  TIMELINE (trace-correlated)")
+        events = incident_timeline(session, run_id=run_id)
+        for event in events[:12]:
+            print(
+                f"    {event.source:<12} {event.event_type:<28} "
+                f"trace={event.trace_id or '-'} span={event.span_id or '-'}"
+            )
+        print(f"    ... {len(events)} events, {len(traces_in(events))} trace(s)")
+
         heading("ACTION RECORDS")
         print_action_records(session, run_id)
         heading("APPROVAL HISTORY")
@@ -220,6 +250,8 @@ def run(settings: Settings) -> int:
         print_audit_timeline(session)
 
     heading("DONE")
+    print(f"  TOTAL SPEND: ${summary.total_cost}  -- exactly zero, because fixture mode")
+    print("  consumes no tokens. Not rounded, not estimated: the figure is the truth.")
     print("  Every result above is SIMULATED. No external system was contacted.")
     print("  One CRM task and one UNSENT email draft. Nothing was sent -- there is no")
     print("  tool that could send. $0 spent, no model call.")

@@ -11,6 +11,9 @@ import typer
 from revenue_sentinel.core.config import get_settings
 from revenue_sentinel.core.errors import RevenueSentinelError
 from revenue_sentinel.core.logging import configure_logging
+from revenue_sentinel.cost import reporting as cost_reporting
+from revenue_sentinel.cost.summary import CostSummary, summarise_run
+from revenue_sentinel.cost.timeline import incident_timeline
 from revenue_sentinel.db.seeding import seed_database
 from revenue_sentinel.db.session import build_engine, build_session_factory, session_scope
 from revenue_sentinel.events.pipeline import run_ingestion_cycle
@@ -281,6 +284,75 @@ def resume(incident_ref: str = "INC-001") -> None:
             typer.echo(line)
         for title in waiting:
             typer.echo(f"    still awaiting approval: {title}")
+    except RevenueSentinelError as error:
+        typer.secho(f"error: {error}", err=True, fg=typer.colors.RED)
+        raise typer.Exit(code=1) from error
+
+
+# ---------------------------------------------------------------------------
+# Cost (Session 7)
+# ---------------------------------------------------------------------------
+CONCURRENCY_NOTE = (
+    "Budgets are checked read-then-call and are safe only because model calls are "
+    "serialized within a run. Two concurrent runs sharing a GLOBAL budget can race "
+    "(ADR-0019)."
+)
+
+
+def render_cost_summary(summary: CostSummary) -> list[str]:
+    """Microdollar precision throughout -- rounding a governance figure to cents is how
+    real sub-cent spend becomes an invisible $0.00."""
+    lines = [
+        f"  model calls        {summary.model_calls}",
+        f"  tool calls         {summary.tool_calls}",
+        f"  model cost         ${summary.model_cost}",
+        f"  tool cost          ${summary.tool_cost}   (SIMULATED adapters bill nothing)",
+        f"  TOTAL              ${summary.total_cost}",
+        f"  pricing version    {', '.join(summary.pricing_versions) or '(no entries)'}",
+    ]
+    if summary.budgets:
+        lines.append("  budgets")
+        for budget in summary.budgets:
+            scope = budget.scope.value + (f":{budget.scope_ref}" if budget.scope_ref else "")
+            lines.append(
+                f"    {scope:<28} limit ${budget.limit_usd}  consumed "
+                f"${budget.consumed_usd}  remaining ${budget.remaining_usd}"
+                + ("" if budget.hard_stop else "  [soft]")
+            )
+    else:
+        lines.append("  budgets            none configured (unbudgeted, not blocked)")
+    return lines
+
+
+@app.command()
+def cost(incident_ref: str = "INC-001", timeline: bool = False) -> None:
+    """Show what one incident's latest run cost, and optionally its timeline."""
+    settings = get_settings()
+    configure_logging(level=settings.log_level, log_format=settings.log_format)
+    factory = build_session_factory(build_engine(settings))
+
+    try:
+        with session_scope(factory) as session:
+            run_id = cost_reporting.latest_run_id(session, incident_ref)
+            summary = summarise_run(session, run_id=run_id, incident_ref=incident_ref)
+            lines = render_cost_summary(summary)
+            events = incident_timeline(session, run_id=run_id) if timeline else []
+            rendered = [
+                f"  {event.occurred_at.isoformat()}  {event.source:<12} "
+                f"{event.event_type:<28} {event.detail}"
+                f"   trace={event.trace_id or '-'} span={event.span_id or '-'}"
+                for event in events
+            ]
+
+        typer.echo(f"COST -- {incident_ref} (DEMO_MODE={settings.demo_mode})")
+        for line in lines:
+            typer.echo(line)
+        typer.secho(f"  {CONCURRENCY_NOTE}", fg=typer.colors.YELLOW)
+
+        if timeline:
+            typer.echo(f"\nTIMELINE ({len(rendered)} events)")
+            for line in rendered:
+                typer.echo(line)
     except RevenueSentinelError as error:
         typer.secho(f"error: {error}", err=True, fg=typer.colors.RED)
         raise typer.Exit(code=1) from error
