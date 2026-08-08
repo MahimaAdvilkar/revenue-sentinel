@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Coroutine
+from dataclasses import replace
 from types import TracebackType
 from typing import Any, Protocol, runtime_checkable
 
@@ -43,6 +44,16 @@ class InProcessMcpClient:
     def __init__(self, context: ToolContext) -> None:
         self._context = context
         self._counter = CallCounter()
+
+    def with_policy(self, engine: object) -> InProcessMcpClient:
+        """A sibling client bound to a different policy engine.
+
+        `execution/` uses this to hand the write gate the approval an action already
+        has, without mutating this client and without the caller having to know how a
+        `ToolContext` is assembled. Returning a new client rather than swapping a field
+        means the narrower permission cannot outlive the one action it was built for.
+        """
+        return InProcessMcpClient(replace(self._context, policy=engine))  # type: ignore[arg-type]
 
     def call_tool(self, tool_name: str, arguments: JSONObject) -> JSONObject:
         return dispatch(tool_name, arguments, self._context, counter=self._counter)
