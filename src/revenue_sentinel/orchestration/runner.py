@@ -15,6 +15,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
+from uuid import UUID
 
 import sqlalchemy as sa
 from sqlalchemy.orm import Session
@@ -34,6 +35,8 @@ from revenue_sentinel.db.repositories import AccountRepository, OpportunityRepos
 from revenue_sentinel.domain.enums import SALES_TOUCH_TYPES, IncidentStatus, WorkflowStatus
 from revenue_sentinel.domain.gtm import Account, Opportunity
 from revenue_sentinel.domain.incidents import Incident
+from revenue_sentinel.execution.service import ExecutionPhase, run_execution_phase
+from revenue_sentinel.governance.policy_engine import DeterministicPolicyEngine
 from revenue_sentinel.incidents.service import transition_incident
 from revenue_sentinel.integrations.simulated.behaviour import SimulatedBehaviour
 from revenue_sentinel.intelligence.factory import build_llm_client
@@ -49,6 +52,8 @@ from revenue_sentinel.orchestration.transitions import GRAPH_EXIT_NODE, Transiti
 logger = get_logger(__name__)
 
 INVESTIGATOR_ACTOR = "agent:investigation_graph"
+EXECUTOR_ACTOR = "agent:execution"
+EXECUTION_NODE = "execute_actions"
 
 INVESTIGABLE_STATUS = IncidentStatus.TRIAGED
 """An investigation starts from `TRIAGED`. Re-investigating an incident that has
@@ -78,6 +83,9 @@ class InvestigationOutcome:
     state: WorkflowState
     persisted: PersistedInvestigation
     transitions: int
+    execution: ExecutionPhase
+    """What the execution phase did. `execution.is_complete` is `False` when the run is
+    paused waiting on a person."""
 
 
 def _load_incident(session: Session, incident_ref: str) -> workflow_orm.Incident:
@@ -211,11 +219,6 @@ def run_investigation(
 
     persisted = persist_investigation(session, final, occurred_at=evaluated_at)
 
-    run.status = WorkflowStatus.COMPLETED
-    run.current_node = GRAPH_EXIT_NODE
-    run.ended_at = evaluated_at
-    session.flush()
-
     transition_incident(
         session,
         incident_row,
@@ -223,6 +226,16 @@ def run_investigation(
         actor=INVESTIGATOR_ACTOR,
         reason="hypotheses and deterministic impact complete",
         occurred_at=evaluated_at,
+    )
+
+    # The execution phase binds the **real** policy engine. The investigation client
+    # above still binds none, so the read-only path cannot write even by accident, and
+    # the two clients differ in exactly the way their jobs differ.
+    execution = _execute_phase(
+        session, run_id=run.id, incident_ref=incident_ref, evaluated_at=evaluated_at
+    )
+    _record_execution_outcome(
+        session, run=run, incident_row=incident_row, phase=execution, occurred_at=evaluated_at
     )
 
     logger.info(
@@ -240,4 +253,173 @@ def run_investigation(
         state=final,
         persisted=persisted,
         transitions=recorder.next_sequence,
+        execution=execution,
     )
+
+
+def _execution_client(
+    session: Session, *, run_id: UUID, evaluated_at: datetime
+) -> InProcessMcpClient:
+    """An MCP client that *can* write, because a policy engine is bound to it."""
+    return InProcessMcpClient(
+        ToolContext(
+            session=session,
+            adapters=build_simulated_adapters(session, SimulatedBehaviour()),
+            occurred_at=evaluated_at,
+            node_name=EXECUTION_NODE,
+            run_id=run_id,
+            policy=DeterministicPolicyEngine(),
+        )
+    )
+
+
+def _execute_phase(
+    session: Session, *, run_id: UUID, incident_ref: str, evaluated_at: datetime
+) -> ExecutionPhase:
+    return run_execution_phase(
+        session,
+        run_id=run_id,
+        incident_ref=incident_ref,
+        client=_execution_client(session, run_id=run_id, evaluated_at=evaluated_at),
+        occurred_at=evaluated_at,
+    )
+
+
+def _record_execution_outcome(
+    session: Session,
+    *,
+    run: workflow_orm.WorkflowRun,
+    incident_row: workflow_orm.Incident,
+    phase: ExecutionPhase,
+    occurred_at: datetime,
+) -> None:
+    """Advance the run and the incident to match what execution actually achieved.
+
+    The lifecycle is walked, not jumped: `ANALYZED -> STRATEGIZED -> {AWAITING_APPROVAL |
+    EXECUTING} -> COMPLETED`. Each hop writes its own audit row, so the timeline reads as
+    what happened rather than as a single leap from analysed to done.
+    """
+    transition_incident(
+        session,
+        incident_row,
+        IncidentStatus.STRATEGIZED,
+        actor=EXECUTOR_ACTOR,
+        reason="interventions ranked and policy decisions recorded",
+        occurred_at=occurred_at,
+    )
+
+    if phase.is_complete:
+        run.status = WorkflowStatus.COMPLETED
+        run.current_node = GRAPH_EXIT_NODE
+        run.ended_at = occurred_at
+        session.flush()
+        transition_incident(
+            session,
+            incident_row,
+            IncidentStatus.EXECUTING,
+            actor=EXECUTOR_ACTOR,
+            reason=f"{len(phase.executed)} action(s) authorised",
+            occurred_at=occurred_at,
+        )
+        transition_incident(
+            session,
+            incident_row,
+            IncidentStatus.COMPLETED,
+            actor=EXECUTOR_ACTOR,
+            reason=f"execution finished: {len(phase.performed)} performed this pass",
+            occurred_at=occurred_at,
+        )
+        return
+
+    # Paused. Everything needed to resume is already committed -- that is what makes a
+    # restart survivable, rather than anything held in memory.
+    run.status = WorkflowStatus.INTERRUPTED
+    run.current_node = EXECUTION_NODE
+    session.flush()
+    transition_incident(
+        session,
+        incident_row,
+        IncidentStatus.AWAITING_APPROVAL,
+        actor=EXECUTOR_ACTOR,
+        reason=f"{len(phase.awaiting_approval)} action(s) require human approval",
+        occurred_at=occurred_at,
+    )
+
+
+def _record_resume_outcome(
+    session: Session,
+    *,
+    run: workflow_orm.WorkflowRun,
+    incident_row: workflow_orm.Incident,
+    phase: ExecutionPhase,
+    occurred_at: datetime,
+) -> None:
+    """Advance a *paused* run. It is already `AWAITING_APPROVAL`, so the walk starts there.
+
+    Still waiting? Nothing moves -- re-recording the same status would add an audit row
+    saying nothing happened, which is worse than silence.
+
+    Already finished? Also nothing. Resuming a completed run is a legitimate no-op (the
+    idempotency claims make it harmless), but the incident is in a terminal state and
+    the lifecycle rightly refuses to leave one. Advancing it again would turn a safe
+    repeat into an `IllegalTransitionError`.
+    """
+    if not phase.is_complete or run.status is WorkflowStatus.COMPLETED:
+        return
+
+    run.status = WorkflowStatus.COMPLETED
+    run.current_node = GRAPH_EXIT_NODE
+    run.ended_at = occurred_at
+    session.flush()
+    transition_incident(
+        session,
+        incident_row,
+        IncidentStatus.EXECUTING,
+        actor=EXECUTOR_ACTOR,
+        reason="approval granted; remaining actions authorised",
+        occurred_at=occurred_at,
+    )
+    transition_incident(
+        session,
+        incident_row,
+        IncidentStatus.COMPLETED,
+        actor=EXECUTOR_ACTOR,
+        reason=f"execution finished: {len(phase.performed)} performed this pass",
+        occurred_at=occurred_at,
+    )
+
+
+def resume_investigation(
+    session: Session, incident_ref: str, *, settings: Settings
+) -> ExecutionPhase:
+    """Run the execution phase again for a paused run.
+
+    This is *resume*, not replay: no node re-runs, no model is called, and no evidence or
+    hypothesis is regenerated. It re-reads durable rows and executes whatever has become
+    authorised since the pause. Calling it on a run that needs nothing is a no-op.
+    """
+    incident_row = _load_incident(session, incident_ref)
+    run = session.scalar(
+        sa.select(workflow_orm.WorkflowRun)
+        .where(workflow_orm.WorkflowRun.incident_id == incident_row.id)
+        .order_by(workflow_orm.WorkflowRun.started_at.desc())
+    )
+    if run is None:
+        raise NotFoundError("workflow run", incident_ref)
+
+    evaluated_at = settings.evaluation_timestamp
+    phase = _execute_phase(
+        session, run_id=run.id, incident_ref=incident_ref, evaluated_at=evaluated_at
+    )
+    _record_resume_outcome(
+        session, run=run, incident_row=incident_row, phase=phase, occurred_at=evaluated_at
+    )
+
+    logger.info(
+        "execution_resumed",
+        incident_ref=incident_ref,
+        run_id=str(run.id),
+        performed=len(phase.performed),
+        awaiting_approval=len(phase.awaiting_approval),
+    )
+    return phase

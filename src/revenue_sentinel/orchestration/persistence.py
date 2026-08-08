@@ -229,6 +229,7 @@ def _persist_governance(
             title=ranked.draft.title,
             action_type=ranked.draft.action,
             rationale=ranked.draft.rationale,
+            target_ref=ranked.draft.target_ref,
             expected_value=ranked.score.expected_value,
             effort_score=ranked.score.effort_score,
             risk_score=ranked.score.risk_score,
