@@ -186,8 +186,22 @@ def test_an_unknown_incident_returns_404(api: TestClient) -> None:
     assert "INC-999" in response.json()["detail"]
 
 
-def test_the_route_surface_is_exactly_the_four_documented_endpoints(
+def test_the_route_surface_is_exactly_the_documented_endpoints(
     api: TestClient,
 ) -> None:
     paths = set(api.app.openapi()["paths"])  # type: ignore[attr-defined]
-    assert paths == {"/health", "/ingest", "/incidents", "/incidents/{incident_ref}"}
+    assert paths == {
+        "/health",
+        "/ingest",
+        "/incidents",
+        "/incidents/{incident_ref}",
+        # Session 9 -- the dashboard read surface. All GET; no mutation endpoint ships
+        # while approvals are a claimed identity with no auth (ADR-0022).
+        "/overview",
+        "/incidents/{incident_ref}/investigation",
+        "/incidents/{incident_ref}/interventions",
+        "/incidents/{incident_ref}/timeline",
+        "/incidents/{incident_ref}/cost",
+        "/approvals",
+        "/evaluation/latest",
+    }

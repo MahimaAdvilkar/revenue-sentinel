@@ -75,13 +75,30 @@ def test_health_returns_503_when_the_database_is_unreachable(settings: Settings)
     assert body["database"] == "unreachable"
 
 
-def test_the_application_exposes_exactly_the_session_2_routes(client: TestClient) -> None:
+def test_the_application_exposes_exactly_the_expected_routes(client: TestClient) -> None:
     """The route surface is pinned, so scope creep shows up as a failing test.
 
-    This asserted `{"/health"}` through Session 1 and was updated when Session 2
-    deliberately added three endpoints -- the requirement moved, not the assertion.
-    Approval endpoints arrive in Session 6 and will move it again.
+    This asserted `{"/health"}` through Session 1, gained three endpoints in Session 2,
+    and gained the dashboard read surface in Session 9 -- the requirement moved each
+    time, not the assertion. It is still an exact set, so an endpoint added without
+    thought fails here.
+
+    **Every addition is a GET.** No mutation endpoint ships, which is the point of
+    ADR-0022 and is asserted separately in `test_api_dashboard.py`.
     """
     paths = set(client.app.openapi()["paths"])  # type: ignore[attr-defined]
 
-    assert paths == {"/health", "/ingest", "/incidents", "/incidents/{incident_ref}"}
+    assert paths == {
+        "/health",
+        "/ingest",
+        "/incidents",
+        "/incidents/{incident_ref}",
+        # Session 9 -- dashboard reads
+        "/overview",
+        "/incidents/{incident_ref}/investigation",
+        "/incidents/{incident_ref}/interventions",
+        "/incidents/{incident_ref}/timeline",
+        "/incidents/{incident_ref}/cost",
+        "/approvals",
+        "/evaluation/latest",
+    }
