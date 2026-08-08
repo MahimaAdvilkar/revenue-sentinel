@@ -1,8 +1,8 @@
 # Project Status
 
 **Last updated:** 2026-08-08
-**Current milestone:** Session 6 — Execution and audit ✅ **COMPLETE**
-**Next milestone:** Session 7 — Cost governance (awaiting approval)
+**Current milestone:** Session 7 — Cost governance ✅ **COMPLETE**
+**Next milestone:** Session 8 — Evaluation (awaiting approval)
 
 ---
 
@@ -17,7 +17,7 @@ figures did not move by a cent.
 | Question | Answer |
 |---|---|
 | Can you run it? | Yes — `make setup && make up && make migrate && make seed && make ingest && make investigate` |
-| Can you run the tests? | Yes — **838 pass, 0 skipped, 0 xfailed** |
+| Can you run the tests? | Yes — **895 pass, 0 skipped, 0 xfailed** |
 | Does detection work? | Yes — 1 signal across 15 opportunities, `INC-001` at `HIGH` |
 | Does the investigation work? | Yes — **6 nodes, 7 transitions**, 6 evidence items, 2 hypotheses, 3 ranked interventions |
 | **Is the MCP server real?** | **Yes.** 15 tools, both transports. `make mcp` runs a spec-compliant stdio server; a test drives it as a real subprocess |
@@ -30,6 +30,8 @@ figures did not move by a cent.
 | Is resume restart-safe? | Yes — proven by destroying the session and engine and resuming against a fresh one (ADR-0016) |
 | Is it exactly-once? | **No, and not claimed.** At-least-once with an explicit `INDETERMINATE` state requiring human reconciliation (ADR-0017) |
 | Are approvals authenticated? | **No.** `--as` is a *claimed* identity. There is no authentication anywhere (ADR-0018) |
+| **Are budgets enforced?** | **Yes, before the spend.** `BUDGET_EXCEEDED` fires before the client is reached — proven by a counting fake that records zero calls (ADR-0019) |
+| What has it cost? | **$0.000000**, printed unrounded. Fixture mode consumes zero tokens, so that figure is the truth rather than a rounding |
 | Is it replay-safe? | Ingestion yes. Execution yes, by idempotency key. **Re-investigating a completed incident is still refused** — resume is not replay. |
 | **Has this system ever called a model?** | **No. Not once.** |
 | Are the LLM fixtures real? | **No — hand-authored, not recorded.** See ADR-0013. |
@@ -223,6 +225,40 @@ A real subprocess over real pipes, not a simulation of a transport. 11 automated
 | 11 | No `messaging_send_email`; `crm_update_opportunity` unreachable | ✅ |
 | 12 | `make demo` end to end, offline, `$0` | ✅ |
 
+### Session 7 — Cost governance ✅
+
+**Delivered**
+
+| Group | Detail |
+|---|---|
+| `cost/pricing.py` | Pure, versioned price table. Unpriced model **raises** |
+| `cost/routing.py` | Frozen call-site → model table. Unrouted site **raises** |
+| `cost/estimation.py` | Deterministic, conservative input estimate — admission control only |
+| `cost/governor.py` | Worst-case reservation, scopes ANDed, 12/30 call ceilings |
+| `cost/client.py` | `BudgetedLLMClient` — the gate, ahead of the client call |
+| `cost/ledger.py` | `$0.000000` entry per call; exact budget reconciliation |
+| `cost/timeline.py` | Merges `model_calls`, `tool_calls`, `cost_entries`, `audit_events` |
+| `cost/summary.py` | Run totals at microdollar precision |
+| `cli.py` | `rs cost INC-001 [--timeline]` |
+| `alembic/0007` | Budget precision widened to `NUMERIC(12, 6)` |
+| `tests/` | **57 new — 895 total** |
+| Docs | **ADR-0019**, **ADR-0020** |
+
+**The enforcement path** — the order is the contract, and it is a decorator so it cannot
+be partially applied:
+
+```
+route → call ceilings → input estimate → worst-case check
+      → BUDGET_EXCEEDED raised HERE, before the client
+      → model call → actual usage → cost entry → consumed_usd
+```
+
+**Two things this does not claim.** The estimator is admission control, **never billing
+truth** — provider tokenization differs and only actual returned usage is recorded.
+And budgets are **not concurrency-safe across runs**: read-then-call is sound only
+because model calls are serialized within a run (ADR-0009). Two concurrent runs sharing a
+`GLOBAL` budget can race. The CLI and demo both print that caveat.
+
 ---
 
 ## What is real and what is not
@@ -368,6 +404,30 @@ question. **No test was weakened, skipped, or xfailed to reach green.**
 
 ---
 
+## Deviations and findings from Session 7
+
+**Budgets could not see the spend charged against them.** `cost_entries.amount_usd` was
+already `NUMERIC(12, 6)`, but `budgets.limit_usd` and `consumed_usd` were
+`NUMERIC(14, 2)` — inherited from the money vocabulary used for pipeline figures, where
+cents are the right granularity. Against microdollar costs it was wrong twice over: a
+limit finer than a cent could not be expressed, and accumulating `$0.000150` into two
+decimals discarded it. Found by a test that set a limit one microdollar below a
+reservation and watched the call be **admitted**, because the limit had rounded up to the
+next cent. **Migration 0007** widens both columns; its downgrade refuses rather than
+truncating recorded spend.
+
+**The timeline silently returned no audit events.** They are **incident**-scoped, not
+run-scoped — a lifecycle transition belongs to the incident and can precede the run that
+observes it — so filtering by `run_id` alone matched nothing. The query now follows the
+incident. A test asserting all four sources are present is what caught it.
+
+**Monetary enforcement was built before it was wired.** The governor and pricing landed
+with tests while `reserve_or_raise` was not on the call path, so the suite was green while
+budgets were measured rather than enforced. That gap was reported rather than glossed, and
+closed by `BudgetedLLMClient`.
+
+---
+
 ## Deviations and findings from Session 6
 
 **The approved path had never been executed end to end, and it was broken.** A test
@@ -453,6 +513,16 @@ interrupts); Session 6 changes that and ADR-0012 says so.
 
 **Prompt quality is untested.** The prompts are reasonable and the framing is
 deliberate, but no live response has ever been evaluated against them.
+
+**No live API usage has ever been observed.** Every cost figure is $0.000000 because
+fixture mode consumes zero tokens — the arithmetic is proven, the provider's accounting is
+not. The estimator's divisor is a defensible guess, not a calibrated one.
+
+**The `GLOBAL` budget is not safe against concurrent independent runs.** Read-then-call
+holds only because model calls are serialized. No atomic reservation exists (ADR-0019).
+
+**OTLP export and Prometheus metrics remain ROADMAP.** Trace and span IDs are recorded and
+correlated in the tables; nothing exports them.
 
 **Exactly-once is not claimed.** Execution is **at-least-once** with an explicit
 `INDETERMINATE` state: a claim found still `EXECUTING` on a later attempt means the

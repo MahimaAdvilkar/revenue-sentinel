@@ -10,13 +10,13 @@ cost, and evaluates its own behaviour.
 
 ## ⚠️ Current status — read this first
 
-> **Session 6 of 11 is complete: detect, investigate, decide, approve, and execute —
-> offline and for free.**
+> **Session 7 of 11 is complete: detect, investigate, decide, approve, execute, and
+> account for every cent — offline and for free.**
 >
 > `make investigate INCIDENT=INC-001` produces a plan, six evidence items, two hypotheses
 > each citing real evidence, **$108,000 weighted / $32,130 at risk**, and three ranked
 > interventions carrying **one ALLOW, one REQUIRE_APPROVAL and one DENY** — with no API key
-> and no network. Verified by **838 passing tests**.
+> and no network. Verified by **895 passing tests**.
 >
 > **The GTM MCP server is real.** 15 narrow, strictly-typed tools; no `run_sql`, no
 > `http_request`. Two transports, both IMPLEMENTED: the in-process client the graph and
@@ -51,7 +51,18 @@ cost, and evaluates its own behaviour.
 > (ADR-0017). And approvals are **not authenticated**: `--as` is a claimed identity, there
 > is no auth anywhere, and there is deliberately no HTTP approval endpoint (ADR-0018).
 >
-> What does not exist yet: **cost governance, evaluation, and the dashboard.** See
+> **Budgets refuse before they are exceeded.** `BUDGET_EXCEEDED` fires before the model
+> client is reached — proven by a counting fake that records zero calls, because "the call
+> failed" and "the call never happened" are different facts. Every model and tool call
+> gets a `cost_entry`, and `make demo` prints the total as **`$0.000000`**, unrounded,
+> because fixture mode consumes zero tokens.
+>
+> **What that figure does not prove.** No live API call has ever been made, so the pricing
+> arithmetic is exhaustively tested and the provider's token accounting is not. The
+> pre-call estimator is admission control, never billing truth. And the global budget is
+> not safe against two concurrent runs (ADR-0019).
+>
+> What does not exist yet: **evaluation and the dashboard.** See
 > [`PROJECT_STATUS.md`](PROJECT_STATUS.md) for the precise state.
 >
 > **All integrations are SIMULATED by design.** No real HubSpot, Salesforce, Gmail, Slack,
@@ -178,11 +189,12 @@ make migrate            # 29 tables, 27 native enum types
 make seed               # 92 deterministic rows, all is_simulated = true
 make ingest             # detect signals and open incidents (SIMULATED source feed)
 make investigate        # run the investigation graph offline (INCIDENT=INC-001)
-make check              # lint, format, mypy --strict, boundaries, 838 tests
+make check              # lint, format, mypy --strict, boundaries, 895 tests
 make api                # then: curl localhost:8000/incidents/INC-001
 make mcp                # the GTM MCP server over stdio (SIMULATED adapters)
 make demo               # the whole scenario end to end — offline, $0, resets local data
 make approvals          # list pending approvals
+uv run rs cost INC-001 --timeline   # cost ledger and trace-correlated timeline
 
 ```
 

@@ -12,6 +12,26 @@ the system's own accounting as much as to pipeline impact.
 
 ---
 
+> **Session 7 status.** Everything below §1–§8 is now IMPLEMENTED, with three honest
+> exceptions stated where they belong: **no live API usage has ever been observed**, the
+> pre-call estimator is **admission control and never billing truth**, and the `GLOBAL`
+> budget is **not safe against concurrent independent runs**. Every recorded figure is
+> `$0.000000` because fixture mode consumes zero tokens — a true figure, not a rounding.
+>
+> Enforcement order (ADR-0019): `route → call ceilings → input estimate → worst-case
+> reservation → **BUDGET_EXCEEDED here** → model call → actual usage → cost entry →
+> consumed_usd`. Reservations are never persisted and never charged; only actual provider
+> usage becomes spend.
+>
+> Prices are versioned data (ADR-0020): every `cost_entries` row stamps its
+> `pricing_version`, and a published version is never edited in place.
+>
+> **Migration 0007.** `cost_entries.amount_usd` already held six decimals, but
+> `budgets.limit_usd` and `consumed_usd` held two — so a limit finer than a cent could not
+> be expressed and sub-cent spend vanished from budget accounting. Both are now
+> `NUMERIC(12, 6)`; the downgrade refuses lossy truncation rather than corrupting recorded
+> spend.
+
 ## 1. Cost flow
 
 ```mermaid

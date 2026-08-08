@@ -1,6 +1,6 @@
 # Capability Matrix
 
-**Last updated:** 2026-08-08 — end of Session 6
+**Last updated:** 2026-08-08 — end of Session 7
 **Rule:** every capability in this repository carries exactly one of four statuses, and the
 status shown here matches what the code and the dashboard say (rules 5 and 19).
 
@@ -82,7 +82,22 @@ status shown here matches what the code and the dashboard say (rules 5 and 19).
 > **Approvals are not authenticated.** `--as` is a claimed identity, there is no auth
 > anywhere, and there is deliberately no HTTP approval endpoint (ADR-0018).
 >
-> **No cost tracking, no evaluation, and no dashboard exists.**
+> **As of Session 7 cost is enforced before it is spent.** Deterministic routing, a
+> pure versioned price table, a conservative pre-call estimate, and a worst-case
+> reservation — `BUDGET_EXCEEDED` fires **before** the client is reached, proven by a
+> counting fake that records zero calls. Every model and tool call gets an explicit
+> `cost_entry`, and run totals reconcile exactly with `budgets.consumed_usd`.
+>
+> **Every figure is $0.000000, and that is the truth rather than a rounding.** Fixture
+> calls consume zero tokens; SIMULATED tool calls bill nothing. **No live API usage has
+> ever been observed**, so the arithmetic is proven and the provider's accounting is not.
+> The estimator is admission control, **never billing truth**.
+>
+> **The `GLOBAL` budget is not concurrency-safe.** Read-then-call is sound only because
+> model calls are serialized within a run; two concurrent runs can race (ADR-0019).
+>
+> **No evaluation framework and no dashboard exists.** OTLP export and Prometheus remain
+> ROADMAP.
 
 ---
 
@@ -263,13 +278,19 @@ They are counted by the registry and excluded from execution by `implemented_det
 |---|---|---|
 | **Tool-call ledger** | **IMPLEMENTED** | 4 — success, typed error, and policy denial all write a row; trace and span correlated |
 | Model-call ledger | **Partial** | 3 writes rows (with `is_replay`); tokens, cache and cost in 7 |
-| Cost ledger (`NUMERIC(12,6)`) | SCAFFOLDED | 7 |
-| **Cost-governance enforcement** | SCAFFOLDED | 7 — **nothing refuses a call on cost today** |
-| **`BUDGET_EXCEEDED` producer** | SCAFFOLDED | 7 — the error code exists; no code path raises it |
+| **Cost ledger (`NUMERIC(12,6)`)** | **IMPLEMENTED** | 7 — an explicit entry per model *and* tool call, including free ones |
+| **Versioned pricing** | **IMPLEMENTED** | 7 — pure function, `pricing_version` on every entry (ADR-0020) |
+| **Deterministic model routing** | **IMPLEMENTED** | 7 — frozen table; an unrouted call site raises |
+| **Trace-correlated cost timeline** | **IMPLEMENTED** | 7 — merges all four ledgers; absent tracing reported as absent, never invented |
+| **CLI / demo cost visibility** | **IMPLEMENTED** | 7 — `rs cost --timeline`; the demo prints `$0.000000` unrounded |
+| **Live provider token accounting** | **NEVER EXERCISED** | No live call has been made; only the arithmetic is proven |
+| **Concurrency-safe budgets** | **NOT BUILT** | No persisted atomic reservation; concurrent runs can race (ADR-0019) |
+| **Cost-governance enforcement** | **IMPLEMENTED** | 7 — pre-spend worst-case admission control (ADR-0019) |
+| **`BUDGET_EXCEEDED` producer** | **IMPLEMENTED** | 7 — raised by the governor before the client call, and by the dispatcher's ceilings |
 | **Retry engine** | SCAFFOLDED | 6 — `ADAPTER_ERROR` and `RATE_LIMITED` declare `retry=True`, but **no retry loop is implemented**; the caller fails |
-| Budgets — run / incident / global | SCAFFOLDED | 7 |
-| Non-monetary ceilings | SCAFFOLDED | 7 |
-| Model routing per call site | SCAFFOLDED | 7 |
+| **Budgets — run / incident / global** | **IMPLEMENTED** | 7 — scopes ANDed; soft budgets log and continue |
+| **Non-monetary ceilings** | **IMPLEMENTED** | 7 — 12 model calls, 30 tool calls per run |
+
 | OTel-shaped spans in logs and tables | SCAFFOLDED | 7 |
 | **OTLP exporter to a real collector** | ROADMAP | — |
 | Prometheus metrics | ROADMAP | — |

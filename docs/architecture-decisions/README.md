@@ -28,6 +28,8 @@ too — an ADR is where tribal knowledge goes to become reviewable.
 | [0016](0016-durable-business-state-resume.md) | Durable business-state resume, not framework checkpoints | Accepted | 2026-08-08 |
 | [0017](0017-idempotency-at-least-once.md) | Idempotency by claimed key; at-least-once with an explicit unknown | Accepted | 2026-08-08 |
 | [0018](0018-claimed-identity-no-authentication.md) | Approval identity is claimed, not authenticated | Accepted | 2026-08-08 |
+| [0019](0019-pre-spend-budget-enforcement.md) | Pre-spend budget enforcement by conservative admission control | Accepted | 2026-08-08 |
+| [0020](0020-versioned-pricing.md) | Pricing is versioned data, not constants | Accepted | 2026-08-08 |
 
 ---
 
