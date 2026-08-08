@@ -16,6 +16,7 @@ from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict
 
+from revenue_sentinel.core.types import JSONObject
 from revenue_sentinel.domain.enums import (
     IncidentStatus,
     IncidentType,
@@ -117,3 +118,139 @@ class ErrorResponse(ApiModel):
     detail: str
     resource: str | None = None
     ref: str | None = None
+
+
+# ---------------------------------------------------------------------------
+# Dashboard read models (Session 9)
+# ---------------------------------------------------------------------------
+# Money and cost are **strings**, deliberately. JSON numbers are IEEE floats and cannot
+# carry a `Decimal` faithfully; serialising `0.000000` as `0.0` would undo the reason
+# `cost_entries.amount_usd` has six decimal places. The frontend formats a string it can
+# trust rather than a float it cannot.
+class EvidenceItemView(BaseModel):
+    evidence_ref: str
+    source_system: str
+    tool_name: str
+    trust_level: str
+    content: JSONObject
+    integration_status: str
+
+
+class HypothesisView(BaseModel):
+    hypothesis_ref: str
+    statement: str
+    confidence: str
+    rank: int
+    cites: list[str]
+
+
+class ImpactView(BaseModel):
+    pipeline_value: str
+    weighted_value: str
+    at_risk_value: str
+    currency: str
+    computed_by: str
+    method_version: str
+
+
+class InvestigationResponse(BaseModel):
+    incident_ref: str
+    evidence: list[EvidenceItemView]
+    hypotheses: list[HypothesisView]
+    impact: ImpactView | None
+
+
+class InterventionView(BaseModel):
+    rank: int
+    title: str
+    action_type: str
+    rationale: str
+    target_ref: str
+    expected_value: str
+    composite_score: str
+    decision: str | None
+    risk_tier: int | None
+    matched_rules: list[str]
+    reason: str | None
+    executed: bool
+    action_status: str | None
+    integration_status: str
+
+
+class TimelineEventView(BaseModel):
+    occurred_at: datetime
+    source: str
+    event_type: str
+    detail: str
+    trace_id: str | None
+    span_id: str | None
+    parent_span_id: str | None
+    amount_usd: str | None
+    pricing_version: str | None
+    integration_status: str | None
+
+
+class TimelineResponse(BaseModel):
+    incident_ref: str
+    trace_count: int
+    events: list[TimelineEventView]
+
+
+class CostLedgerEntry(BaseModel):
+    kind: str
+    cost_type: str
+    amount_usd: str
+    pricing_version: str
+
+
+class CostSummaryResponse(BaseModel):
+    incident_ref: str
+    model_cost: str
+    tool_cost: str
+    total_cost: str
+    model_calls: int
+    tool_calls: int
+    pricing_versions: list[str]
+    concurrency_note: str
+    ledger: list[CostLedgerEntry]
+
+
+class ApprovalInboxItem(BaseModel):
+    approval_ref: str
+    status: str
+    requested_by: str
+    expires_at: datetime
+    intervention_title: str
+    approve_command: str
+    integration_status: str
+
+
+class ApprovalInboxResponse(BaseModel):
+    pending: list[ApprovalInboxItem]
+    identity_note: str
+
+
+class EvaluationResultItem(BaseModel):
+    check_name: str
+    outcome: str
+    expected: str
+    actual: str
+    detail: str | None
+
+
+class EvaluationResponse(BaseModel):
+    suite_name: str
+    evaluator_version: str
+    passed: int
+    total: int
+    llm_judge_used: bool
+    evaluation_cost: str
+    results: list[EvaluationResultItem]
+
+
+class OverviewResponse(BaseModel):
+    total_at_risk: str
+    total_weighted: str
+    open_incidents: int
+    incidents_by_status: dict[str, int]
+    integration_status: str
