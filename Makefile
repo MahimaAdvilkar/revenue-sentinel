@@ -135,7 +135,7 @@ investigate:  ## Run the investigation graph offline. INCIDENT=INC-001
 	$(UV) run python -m scripts.investigate $(or $(INCIDENT),INC-001)
 
 .PHONY: demo
-demo:  ## [S6] Run the golden scenario end to end — OFFLINE, no API key
+demo:  ## Run the golden scenario end to end — OFFLINE, no API key, $0
 	DEMO_MODE=fixture $(UV) run python -m scripts.demo
 
 .PHONY: smoke-live

@@ -14,7 +14,9 @@ from revenue_sentinel.core.logging import configure_logging
 from revenue_sentinel.db.seeding import seed_database
 from revenue_sentinel.db.session import build_engine, build_session_factory, session_scope
 from revenue_sentinel.events.pipeline import run_ingestion_cycle
-from revenue_sentinel.orchestration.runner import run_investigation
+from revenue_sentinel.execution.service import summarise as execution_summary
+from revenue_sentinel.governance import approval_service
+from revenue_sentinel.orchestration.runner import resume_investigation, run_investigation
 
 app = typer.Typer(
     name="revenue-sentinel",
@@ -173,3 +175,112 @@ def investigate(incident_ref: str) -> None:
 
 if __name__ == "__main__":  # pragma: no cover -- exercised via the console script
     app()
+
+
+# ---------------------------------------------------------------------------
+# Approvals (Session 6) -- see ADR-0018 on what `--as` does and does not mean
+# ---------------------------------------------------------------------------
+IDENTITY_WARNING = (
+    "NOTE: --as is a CLAIMED identity, not an authenticated one. This system has no "
+    "authentication; anyone with shell and database access can claim any actor. "
+    "Self-approval prevention stops an accident, not an impersonation (ADR-0018)."
+)
+
+
+@app.command()
+def approvals(pending_only: bool = True) -> None:
+    """List approval requests awaiting a human decision."""
+    settings = get_settings()
+    configure_logging(level=settings.log_level, log_format=settings.log_format)
+    factory = build_session_factory(build_engine(settings))
+
+    with session_scope(factory) as session:
+        rows = approval_service.list_requests(
+            session, now=settings.evaluation_timestamp, pending_only=pending_only
+        )
+
+        if not rows:
+            typer.echo("No approval requests.")
+            return
+
+        typer.echo(f"{len(rows)} approval request(s):")
+        for row in rows:
+            typer.echo(
+                f"  {row.approval_ref}  {row.effective_status.value:<9} "
+                f"expires {row.expires_at.isoformat()}"
+            )
+            typer.echo(f"      {row.intervention_title}")
+            typer.echo(f"      requested by {row.requested_by} -- SIMULATED action")
+            typer.echo(f"      approve: uv run rs approve {row.approval_ref} --as usr:your-name")
+
+
+def _decide(approval_ref: str, actor: str, *, approved: bool, note: str | None) -> None:
+    settings = get_settings()
+    configure_logging(level=settings.log_level, log_format=settings.log_format)
+    factory = build_session_factory(build_engine(settings))
+    verb = "approved" if approved else "rejected"
+
+    try:
+        with session_scope(factory) as session:
+            request = approval_service.get_by_ref(session, approval_ref)
+            approval_service.decide(
+                session,
+                request,
+                approved=approved,
+                decided_by=actor,
+                occurred_at=settings.evaluation_timestamp,
+                note=note,
+            )
+        typer.echo(f"{approval_ref} {verb} by {actor}")
+        typer.secho(IDENTITY_WARNING, fg=typer.colors.YELLOW)
+        if approved:
+            typer.echo("\nNothing executed yet. Resume the run to act on it:")
+            typer.echo("  uv run rs resume INC-001")
+    except RevenueSentinelError as error:
+        typer.secho(f"error: {error}", err=True, fg=typer.colors.RED)
+        raise typer.Exit(code=1) from error
+
+
+@app.command()
+def approve(approval_ref: str, actor: str = typer.Option(..., "--as")) -> None:
+    """Approve a pending request. `--as` is a claimed identity (ADR-0018)."""
+    _decide(approval_ref, actor, approved=True, note=None)
+
+
+@app.command()
+def reject(approval_ref: str, actor: str = typer.Option(..., "--as")) -> None:
+    """Reject a pending request. `--as` is a claimed identity (ADR-0018)."""
+    _decide(approval_ref, actor, approved=False, note=None)
+
+
+@app.command()
+def resume(incident_ref: str = "INC-001") -> None:
+    """Resume a paused run from persisted business state (ADR-0016).
+
+    Not a replay: no investigation node re-runs and no model call site is exercised.
+    Only the pending execution phase continues.
+    """
+    settings = get_settings()
+    configure_logging(level=settings.log_level, log_format=settings.log_format)
+    factory = build_session_factory(build_engine(settings))
+
+    try:
+        with session_scope(factory) as session:
+            phase = resume_investigation(session, incident_ref, settings=settings)
+            summary = execution_summary(phase)
+            lines = [
+                f"    {result.status.value:<10} {result.payload.get('tool', '?')}"
+                f"   {'already done' if result.already_done else 'performed now'}"
+                f"   [{result.payload.get('integration_status', '?')}]"
+                for result in phase.executed
+            ]
+            waiting = [item.title for item in phase.awaiting_approval]
+
+        typer.echo(f"Resumed {incident_ref}: {summary}")
+        for line in lines:
+            typer.echo(line)
+        for title in waiting:
+            typer.echo(f"    still awaiting approval: {title}")
+    except RevenueSentinelError as error:
+        typer.secho(f"error: {error}", err=True, fg=typer.colors.RED)
+        raise typer.Exit(code=1) from error
