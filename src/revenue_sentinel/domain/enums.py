@@ -332,11 +332,21 @@ value, since the two enums overlap by value rather than by identity."""
 
 @unique
 class ActionStatus(StrEnum):
+    """Lifecycle of one attempted external effect.
+
+    `INDETERMINATE` is the honest one. A row claimed as `EXECUTING` and found still
+    `EXECUTING` on a later attempt means the process died between claiming the effect
+    and recording its outcome -- so the effect may or may not have happened. Retrying
+    could duplicate it; marking it failed could hide it. Neither is a guess worth
+    making, so it is recorded as unknown and reconciled by a human (ADR-0017).
+    """
+
     PENDING = "pending"
     EXECUTING = "executing"
     SUCCEEDED = "succeeded"
     FAILED = "failed"
     SKIPPED = "skipped"
+    INDETERMINATE = "indeterminate"
 
 
 # ---------------------------------------------------------------------------

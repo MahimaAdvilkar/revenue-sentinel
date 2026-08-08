@@ -11,7 +11,14 @@ Three properties, each with a test:
   able to authorise anything just because a background job is late.
 * **Self-approval is impossible.** The actor that requested cannot be the actor that
   decides. This is checked here rather than in a route handler, so it holds for every
-  caller including a future CLI.
+  caller including the CLI.
+
+  It compares `requested_by`, a real column as of migration 0005. Session 5 smuggled the
+  actor into `decision_note` and parsed it back out; that worked, but it put an
+  authorisation-relevant value in a free-text field where the next note would destroy it.
+
+  **This prevents an accident, not an impersonation.** There is no authentication in this
+  system: the actor is a string a caller supplies (ADR-0018).
 * **Time is injected.** `occurred_at` is passed in, never read from the clock, which is
   what lets expiry be tested without sleeping and what keeps a replayed run identical.
 """
@@ -29,6 +36,8 @@ from revenue_sentinel.core.errors import RevenueSentinelError
 from revenue_sentinel.core.ids import new_id
 from revenue_sentinel.db.models import governance as orm
 from revenue_sentinel.domain.enums import ApprovalStatus
+
+APPROVAL_REF_SEQUENCE: Final = "approval_ref_seq"
 
 DEFAULT_APPROVAL_TTL: Final = timedelta(hours=24)
 """Long enough for a working day, short enough that a forgotten request expires rather
@@ -64,34 +73,37 @@ def create_approval_request(
 ) -> orm.ApprovalRequest:
     """Record that a person must decide before this action could ever run.
 
-    `requested_by` is stored so `decide` can refuse a self-approval. It lives in
-    `decision_note` rather than a dedicated column because the table has no
-    `requested_by` -- see the note in `PROJECT_STATUS.md`; adding the column is a
-    Session 6 migration, and inventing one here would be a schema change smuggled into
-    a session that promised not to execute anything.
+    `requested_by` is a real column and `approval_ref` (`APR-001`) is allocated from a
+    sequence, so a human at a CLI has something to type.
     """
     request = orm.ApprovalRequest(
         id=new_id(),
+        approval_ref=allocate_approval_ref(session),
         policy_evaluation_id=policy_evaluation_id,
         run_id=run_id,
         status=ApprovalStatus.PENDING,
+        requested_by=requested_by,
         requested_at=occurred_at,
         expires_at=occurred_at + ttl,
         decided_at=None,
         decided_by=None,
-        decision_note=f"requested_by={requested_by}",
+        decision_note=None,
     )
     session.add(request)
     session.flush()
     return request
 
 
-def requested_by(request: orm.ApprovalRequest) -> str | None:
-    """Reads back what `create_approval_request` recorded."""
-    note = request.decision_note
-    if note is None or not note.startswith("requested_by="):
-        return None
-    return note.removeprefix("requested_by=")
+def allocate_approval_ref(session: Session) -> str:
+    """`APR-001`, from a sequence -- the same pattern incident references use.
+
+    A sequence rather than `count(*) + 1`, which races under any concurrency and passes
+    every single-threaded test.
+    """
+    number = session.execute(
+        sa.select(sa.func.nextval(sa.text(f"'{APPROVAL_REF_SEQUENCE}'")))
+    ).scalar_one()
+    return f"APR-{int(number):03d}"
 
 
 def effective_status(request: orm.ApprovalRequest, *, now: datetime) -> ApprovalStatus:
@@ -121,8 +133,7 @@ def decide(
     now and so Session 6 wires a UI to something already proven, rather than proving it
     under deadline.
     """
-    original_requester = requested_by(request)
-    if original_requester is not None and original_requester == decided_by:
+    if request.requested_by == decided_by:
         raise SelfApprovalError(decided_by)
 
     if effective_status(request, now=occurred_at) is ApprovalStatus.EXPIRED:

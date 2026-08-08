@@ -135,6 +135,12 @@ class Intervention(Base, CreatedAtMixin):
     # including proposals the policy layer refused. See migration 0004.
     action_type: Mapped[ProposedAction] = mapped_column(pg_enum(ProposedAction, "proposed_action"))
     rationale: Mapped[long_text]
+    target_ref: Mapped[short_text]
+    """What the action would act on -- `ACC-1001`, `OPP-2001`. Added in migration 0006:
+    Session 5 drafted a target and then dropped it on persistence, which was harmless
+    while nothing executed and is not once something does. An executor needs to know
+    what it is acting upon, and the idempotency key is computed from it."""
+
     expected_value: Mapped[money]
     effort_score: Mapped[score]
     risk_score: Mapped[score]

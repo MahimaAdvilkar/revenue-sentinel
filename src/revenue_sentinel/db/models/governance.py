@@ -66,7 +66,14 @@ class ApprovalRequest(Base, TimestampMixin):
         sa.ForeignKey("policy_evaluations.id", ondelete="CASCADE"), unique=True
     )
     run_id: Mapped[uuid_fk] = mapped_column(sa.ForeignKey("workflow_runs.id", ondelete="CASCADE"))
+    approval_ref: Mapped[str] = mapped_column(sa.String(16), unique=True, index=True)
     status: Mapped[ApprovalStatus] = mapped_column(pg_enum(ApprovalStatus, "approval_status"))
+    requested_by: Mapped[short_text]
+    """The actor that asked. A real column as of migration 0005 -- it was previously
+    smuggled into `decision_note` as `requested_by=<actor>` and parsed back out, which
+    worked but put an authorisation-relevant value in a free-text field that any later
+    note would overwrite. Self-approval prevention compares against this."""
+
     requested_at: Mapped[timestamp_tz]
     expires_at: Mapped[timestamp_tz]
     decided_at: Mapped[timestamp_tz | None] = mapped_column(nullable=True)
@@ -90,9 +97,25 @@ class ActionRecord(Base, TimestampMixin):
         sa.ForeignKey("interventions.id", ondelete="CASCADE")
     )
     action_type: Mapped[ActionType] = mapped_column(pg_enum(ActionType, "action_type"))
+    """`ActionType`, not `ProposedAction`. The executable vocabulary has no tier-3
+    member, so a prohibited action has no representation in this table at all -- the
+    first and cheapest of the four things that make Tier 3 unexecutable."""
+
     idempotency_key: Mapped[digest] = mapped_column(unique=True)
     status: Mapped[ActionStatus] = mapped_column(pg_enum(ActionStatus, "action_status"))
-    authorized_by: Mapped[uuid_fk]
+    authorized_by: Mapped[uuid_fk] = mapped_column(
+        sa.ForeignKey("policy_evaluations.id", ondelete="RESTRICT")
+    )
+    """The decision that permitted this. A real foreign key as of migration 0006: the
+    docstring above claimed every action traces to its authorisation, and a claim like
+    that belongs in the schema rather than in a comment."""
+
+    approval_request_id: Mapped[uuid_fk | None] = mapped_column(
+        sa.ForeignKey("approval_requests.id", ondelete="RESTRICT"), nullable=True
+    )
+    """Set only for actions that needed a person. `NULL` for Tier 1, which is how a
+    query can tell auto-approved work from approved work without re-deriving tiers."""
+
     attempt_count: Mapped[int] = mapped_column(sa.Integer, server_default=sa.text("0"))
     result: Mapped[json_object | None] = mapped_column(JSONB, nullable=True)
     executed_at: Mapped[timestamp_tz | None] = mapped_column(nullable=True)
