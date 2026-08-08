@@ -105,22 +105,10 @@ jobs:
       - name: Unit and integration tests
         run: uv run pytest tests/unit tests/integration -ra
 
-      # Guarded because `tests/evaluation/` holds no tests until Session 8, and
-      # pytest exits 5 ("no tests collected") on an empty directory — which would
-      # fail this job for the wrong reason. The guard is removed in Session 8; it
-      # is not a way of tolerating a failing suite.
-      - name: Check for an evaluation suite
-        id: evaluation
-        run: |
-          if [ -n "$(find tests/evaluation -name 'test_*.py' -print -quit 2>/dev/null)" ]; then
-            echo "present=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "present=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::No evaluation suite yet — activates in Session 8."
-          fi
-
+      # The Session 3-7 guard against an empty tests/evaluation/ is gone: the rubric
+      # suite exists now, and a guard that tolerates emptiness would let a future
+      # deletion pass silently.
       - name: Workflow evaluation suite
-        if: steps.evaluation.outputs.present == 'true'
         run: uv run pytest tests/evaluation -ra
 
   secrets:

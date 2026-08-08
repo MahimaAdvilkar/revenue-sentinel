@@ -102,8 +102,8 @@ test:  ## [S1] Unit + integration tests
 	$(UV) run pytest tests/unit tests/integration
 
 .PHONY: eval
-eval:  ## [S8] Workflow rubric + security suite
-	$(UV) run pytest tests/evaluation
+eval:  ## Deterministic evaluation of the golden run — $0, no model consulted
+	$(UV) run python -m scripts.evaluate
 
 .PHONY: check
 check: lint format-check types boundaries test  ## [S1] Every gate CI runs
