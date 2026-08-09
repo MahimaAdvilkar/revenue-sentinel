@@ -32,6 +32,7 @@ too — an ADR is where tribal knowledge goes to become reviewable.
 | [0020](0020-versioned-pricing.md) | Pricing is versioned data, not constants | Accepted | 2026-08-08 |
 | [0021](0021-deterministic-structural-evaluation.md) | Evaluation is deterministic and structural; no LLM judge in v1 | Accepted | 2026-08-08 |
 | [0022](0022-read-only-dashboard.md) | The dashboard is read-only until authenticated identity exists | Accepted | 2026-08-08 |
+| [0023](0023-openapi-generated-typescript-contract.md) | OpenAPI-generated TypeScript is the frontend/backend contract | Accepted | 2026-08-09 |
 
 ---
 

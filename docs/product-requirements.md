@@ -122,7 +122,23 @@ requirements 1–13 are each phrased as an assertion it makes.
   audit event with correlated trace and span IDs.
 
 ### Dashboard
-- Executive overview, incident queue, incident detail with full timeline, approval inbox,
+
+**Status (Session 9): four screens IMPLEMENTED, read-only.**
+
+| Screen | Question it answers | Status |
+|---|---|---|
+| Executive overview | What is at risk, in dollars, right now? | ✅ |
+| Incident queue | Which incidents need attention, and in what order? | ✅ |
+| Incident detail + timeline | What happened on this deal, why, and what did it cost? | ✅ |
+| Approval inbox | What is waiting on a person? | ✅ **read-only** |
+| Cost center | — | Session 10 |
+| Evaluation center | — | Session 10 |
+
+**The approval inbox has no Approve button, deliberately.** There is no authentication in
+this system, so a button would imply a session and an accountable actor that do not exist
+(ADR-0018, ADR-0022). It renders the exact CLI command instead. Approving remains a
+terminal action, which is friction chosen over a false affordance.
+
   cost center, evaluation center, integration catalog.
 
 ---

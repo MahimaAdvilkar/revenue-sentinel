@@ -409,7 +409,19 @@ nothing. Time pressure tempting a weakened assertion — which rule 13 forbids a
 
 ---
 
-## Session 9 — Dashboard
+## Session 9 — Dashboard ✅ COMPLETE
+
+**Outcome.** 8 read-only endpoints, four Next.js screens, generated OpenAPI TypeScript
+contract, **962 backend tests + 36 frontend tests**, production build green, offline
+verified against built output. ADR-0022 and ADR-0023 added.
+
+**The dashboard is read-only, deliberately.** There is no authentication, so an approve
+button would imply a session and an accountable `decided_by` that do not exist. Enforced
+by three tests: no mutation route in the live schema, none in the generated contract, and
+no button, form, or input on the approvals screen.
+
+**Not built:** authentication, browser approval, cost center, evaluation center.
+
 
 **Objective.** The professional surface — read-only over already-final APIs, plus the one
 interactive flow.

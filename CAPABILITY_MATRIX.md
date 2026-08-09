@@ -1,6 +1,6 @@
 # Capability Matrix
 
-**Last updated:** 2026-08-08 — end of Session 8
+**Last updated:** 2026-08-09 — end of Session 9
 **Rule:** every capability in this repository carries exactly one of four statuses, and the
 status shown here matches what the code and the dashboard say (rules 5 and 19).
 
@@ -325,10 +325,13 @@ They are counted by the registry and excluded from execution by `implemented_det
 | `GET /incidents/{incident_ref}` | **IMPLEMENTED** | 2 — detail with the originating signal |
 | Approval APIs | SCAFFOLDED | 6 |
 | Timeline API | SCAFFOLDED | 7 |
-| Executive overview | SCAFFOLDED | 9 |
-| Incident queue | SCAFFOLDED | 9 |
-| Incident detail + timeline | SCAFFOLDED | 9 |
-| Approval inbox | SCAFFOLDED | 9 |
+| **Executive overview** | **IMPLEMENTED** | 9 — at-risk dollars, open incidents, pending approvals, total spend |
+| **Incident queue** | **IMPLEMENTED** | 9 — ranked by the API; account, opportunity, amount, at-risk |
+| **Incident detail + timeline** | **IMPLEMENTED** | 9 — evidence, hypotheses, impact, interventions, decisions, cost, trace-correlated timeline |
+| **Approval inbox (read-only)** | **IMPLEMENTED** | 9 — renders the CLI command; **no button exists**, asserted by test (ADR-0022) |
+| **Generated OpenAPI TS contract** | **IMPLEMENTED** | 9 — schema checked in; a backend rename breaks the frontend build (ADR-0023) |
+| **Offline frontend build** | **IMPLEMENTED** | 9 — verified against built output, not source |
+| **Browser approval mutation** | **NOT A CAPABILITY** | No auth exists; a button would imply accountability that does not (ADR-0022) |
 | Cost center | SCAFFOLDED | 10 |
 | Evaluation center | SCAFFOLDED | 10 |
 | Integration catalog | SCAFFOLDED | 10 |

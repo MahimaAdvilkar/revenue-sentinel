@@ -1,8 +1,8 @@
 # Project Status
 
 **Last updated:** 2026-08-08
-**Current milestone:** Session 8 — Evaluation ✅ **COMPLETE**
-**Next milestone:** Session 9 — Dashboard (awaiting approval)
+**Current milestone:** Session 9 — Dashboard ✅ **COMPLETE**
+**Next milestone:** Session 10 — Cost & evaluation centers (awaiting approval)
 
 ---
 
@@ -17,7 +17,9 @@ figures did not move by a cent.
 | Question | Answer |
 |---|---|
 | Can you run it? | Yes — `make setup && make up && make migrate && make seed && make ingest && make investigate` |
-| Can you run the tests? | Yes — **950 pass, 0 skipped, 0 xfailed** |
+| Can you run the tests? | Yes — **962 backend, 0 skipped, 0 xfailed**, plus **36 frontend** |
+| **Is there a dashboard?** | **Yes.** Four screens — overview, incident queue, incident detail with timeline, approval inbox. `make web` |
+| Can you approve in the browser? | **No, deliberately.** The inbox shows the CLI command. There is no auth, so a button would imply accountability that does not exist (ADR-0022) |
 | Does detection work? | Yes — 1 signal across 15 opportunities, `INC-001` at `HIGH` |
 | Does the investigation work? | Yes — **6 nodes, 7 transitions**, 6 evidence items, 2 hypotheses, 3 ranked interventions |
 | **Is the MCP server real?** | **Yes.** 15 tools, both transports. `make mcp` runs a spec-compliant stdio server; a test drives it as a real subprocess |
@@ -295,6 +297,39 @@ structural: untrusted labelling, escaped delimiters and attributes, no unauthori
 record, no out-of-route tool call, and a dangerous capability that does not exist. See
 ADR-0021.
 
+### Session 9 — Dashboard ✅
+
+**Delivered**
+
+| Group | Detail |
+|---|---|
+| `api/dashboard.py` | 8 read-only GET endpoints over work Sessions 3–8 had produced |
+| `apps/web/` | Next.js 16 + React 19 + TypeScript, four screens |
+| `apps/web/generated/` | OpenAPI schema **checked in**, TS types generated from it |
+| `apps/web/lib/` | Typed client layer and the six-decimal formatters |
+| `scripts/export_openapi.py` | Deterministic schema export |
+| `tests/` | 12 backend contract tests + **36 frontend tests** |
+| Docs | **ADR-0022**, **ADR-0023** |
+
+**The type contract earned its keep immediately.** Building the incident queue,
+`pnpm typecheck` rejected `account_name`, `amount`, `currency`, and `is_simulated` —
+four fields the screen needed that `IncidentSummary` did not publish. Caught before any
+UI ran; hand-written interfaces would have shipped four blank columns. The fields were
+added to the API, contract-tested, and regenerated.
+
+**Read-only, twice over.** A pytest test parses the OpenAPI schema and fails on any
+POST/PUT/PATCH/DELETE outside `/ingest`; a Vitest test asserts the same against the
+*generated* contract, and a third asserts the approvals screen renders zero `<button>`,
+`<form>`, and `<input>` elements.
+
+**SIMULATED is data-driven at row level.** The banner describes the environment and may
+be constant; the badge describes one row and renders **nothing** when the API asserted
+nothing — tested. If it were constant too, a real integration could land and every row
+would keep claiming SIMULATED.
+
+**Offline is verified against the built output**, not the source: the test walks `.next`
+and fails on any reference to a font CDN, analytics, or telemetry host.
+
 ---
 
 ## What is real and what is not
@@ -549,6 +584,9 @@ interrupts); Session 6 changes that and ADR-0012 says so.
 
 **Prompt quality is untested.** The prompts are reasonable and the framing is
 deliberate, but no live response has ever been evaluated against them.
+
+**There is no authentication, so the dashboard cannot approve anything.** The inbox
+renders the CLI command and says why. Cost and evaluation centers are Session 10.
 
 **One golden scenario measures no production accuracy.** The rubric proves the system
 does what it promised *on this run*. It says nothing about detector precision or recall,

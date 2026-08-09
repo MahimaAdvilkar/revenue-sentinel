@@ -224,6 +224,13 @@ Arriving later: `POST /incidents/{ref}/approve` and `/reject` (Session 6),
 
 ## 5. Deployment design
 
+**Frontend (Session 9).** `apps/web` is Next.js 16 + React 19 + TypeScript. The API
+contract is **generated** from FastAPI's OpenAPI schema into `apps/web/generated`
+(ADR-0023), so a backend field rename breaks the frontend build rather than rendering an
+empty cell. Fetching lives in one typed client layer (`apps/web/lib/api.ts`); components
+do not call `fetch`. The runtime is offline — no CDN fonts, analytics, or remote assets —
+and a test verifies that against the *built output* rather than the source.
+
 v1 is deliberately small: one API process, one database, one frontend. No broker, no
 cache, no collector.
 
