@@ -13,10 +13,10 @@ from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
-from revenue_sentinel.core.types import JSONObject
 from revenue_sentinel.domain.enums import (
     IncidentStatus,
     IncidentType,
@@ -72,7 +72,19 @@ class IncidentSummary(ApiModel):
     opened_at: datetime
     closed_at: datetime | None
     account_ref: str
+    account_name: str
     opportunity_ref: str | None
+
+    # Added in Session 9 for the incident queue, which has to rank by money and could not
+    # do so from refs alone. All read-only, all nullable where the underlying row may not
+    # exist yet: an incident that has not been investigated has no impact assessment, and
+    # saying so with `null` beats omitting the column and leaving the UI to guess.
+    amount: str | None
+    currency: str | None
+    at_risk_value: str | None
+    is_simulated: bool
+    """`True` for every row in v1. Read from `accounts.is_simulated` rather than
+    hardcoded, so the badge stops appearing if a real integration ever lands (rule 5)."""
 
 
 class IncidentDetail(ApiModel):
@@ -127,12 +139,28 @@ class ErrorResponse(ApiModel):
 # carry a `Decimal` faithfully; serialising `0.000000` as `0.0` would undo the reason
 # `cost_entries.amount_usd` has six decimal places. The frontend formats a string it can
 # trust rather than a float it cannot.
+FreeFormJson = dict[str, Any]
+"""Evidence content, as the API publishes it.
+
+Internally this is `JSONObject`, whose value type is **recursive**. FastAPI emits that
+faithfully as a self-referential `$ref`, and `openapi-typescript` then generates a
+recursive type alias that TypeScript refuses to resolve through indexed access
+(`TS2502`).
+
+The boundary is the right place to stop the recursion. A client rendering evidence
+key-by-key does not depend on the nesting rules, and publishing a free-form object
+(`additionalProperties: true`) is both a truthful description of the payload and one a
+generator can express. The internal type is unchanged; only what the contract promises
+is narrowed.
+"""
+
+
 class EvidenceItemView(BaseModel):
     evidence_ref: str
     source_system: str
     tool_name: str
     trust_level: str
-    content: JSONObject
+    content: FreeFormJson
     integration_status: str
 
 

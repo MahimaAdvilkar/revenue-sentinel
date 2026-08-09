@@ -24,6 +24,7 @@ from revenue_sentinel.api.schemas import (
 )
 from revenue_sentinel.db.models import events as event_orm
 from revenue_sentinel.db.models import gtm as gtm_orm
+from revenue_sentinel.db.models import investigation as investigation_orm
 from revenue_sentinel.db.models import workflow as workflow_orm
 from revenue_sentinel.domain.enums import IncidentStatus, Severity
 
@@ -34,7 +35,14 @@ def _summarize(
     incident: workflow_orm.Incident,
     account: gtm_orm.Account,
     opportunity: gtm_orm.Opportunity | None,
+    at_risk_value: object | None = None,
 ) -> IncidentSummary:
+    """One queue row.
+
+    Money is serialized as a **string** for the same reason every other monetary field
+    is: a JSON float cannot carry a `Decimal` faithfully, and the queue ranks by these
+    numbers.
+    """
     return IncidentSummary(
         incident_ref=incident.incident_ref,
         incident_type=incident.incident_type,
@@ -44,7 +52,12 @@ def _summarize(
         opened_at=incident.opened_at,
         closed_at=incident.closed_at,
         account_ref=account.account_ref,
+        account_name=account.name,
         opportunity_ref=opportunity.opportunity_ref if opportunity else None,
+        amount=str(opportunity.amount) if opportunity else None,
+        currency=opportunity.currency if opportunity else None,
+        at_risk_value=None if at_risk_value is None else str(at_risk_value),
+        is_simulated=account.is_simulated,
     )
 
 
@@ -89,7 +102,18 @@ def list_incidents(
             if incident.opportunity_id is not None
             else None
         )
-        summaries.append(_summarize(incident, account, opportunity))
+        # The most recent assessment for this incident, if it has been investigated.
+        # A queue row for an un-investigated incident is legitimate and reports `null`.
+        at_risk = session.scalar(
+            sa.select(investigation_orm.ImpactAssessment.at_risk_value)
+            .join(
+                workflow_orm.WorkflowRun,
+                workflow_orm.WorkflowRun.id == investigation_orm.ImpactAssessment.run_id,
+            )
+            .where(workflow_orm.WorkflowRun.incident_id == incident.id)
+            .order_by(workflow_orm.WorkflowRun.started_at.desc())
+        )
+        summaries.append(_summarize(incident, account, opportunity, at_risk))
 
     return IncidentListResponse(count=len(summaries), incidents=tuple(summaries))
 
