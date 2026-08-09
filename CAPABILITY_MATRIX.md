@@ -1,6 +1,6 @@
 # Capability Matrix
 
-**Last updated:** 2026-08-09 — end of Session 9
+**Last updated:** 2026-08-08 — end of Session 10
 **Rule:** every capability in this repository carries exactly one of four statuses, and the
 status shown here matches what the code and the dashboard say (rules 5 and 19).
 
@@ -113,8 +113,12 @@ status shown here matches what the code and the dashboard say (rules 5 and 19).
 > a dangerous capability that does not exist.
 >
 > **One golden scenario measures no production precision, recall, or effectiveness**, and
-> nothing here claims otherwise. No dashboard exists. OTLP export and Prometheus remain
-> ROADMAP.
+> nothing here claims otherwise. OTLP export and Prometheus remain ROADMAP.
+>
+> **A dashboard exists as of Session 9 and has seven screens as of Session 10.** It is
+> read-only throughout: there is no authenticated identity, so no browser control mutates
+> anything (ADR-0022). **Cache effectiveness is reported as never observed, not as `0%`** —
+> no live API call has ever been made, so there is nothing to measure.
 
 ---
 
@@ -332,9 +336,11 @@ They are counted by the registry and excluded from execution by `implemented_det
 | **Generated OpenAPI TS contract** | **IMPLEMENTED** | 9 — schema checked in; a backend rename breaks the frontend build (ADR-0023) |
 | **Offline frontend build** | **IMPLEMENTED** | 9 — verified against built output, not source |
 | **Browser approval mutation** | **NOT A CAPABILITY** | No auth exists; a button would imply accountability that does not (ADR-0022) |
-| Cost center | SCAFFOLDED | 10 |
-| Evaluation center | SCAFFOLDED | 10 |
-| Integration catalog | SCAFFOLDED | 10 |
+| **Cost centre** | **IMPLEMENTED** | 10 — period spend vs budgets, per-incident ranking, model mix with the replay share, six decimals throughout, ADR-0019 caveat on screen |
+| **Cache effectiveness reporting** | **IMPLEMENTED as "never observed"** | 10 — `observed: false` with a reason. **Not a measurement**; a `0%` would be a claim this system cannot support |
+| **Evaluation centre** | **IMPLEMENTED** | 10 — append-only history ordered by insertion sequence; a failed attempt stays visible after a later pass |
+| **Integration catalogue** | **IMPLEMENTED** | 10 — status and roadmap copy read from each adapter module, never restated in the API or UI |
+| Per-attempt evaluation detail (older attempts) | **NOT BUILT** | 10 — `/evaluation/runs` returns summaries; per-check detail exists for the latest attempt only, and the screen says so |
 | **Frontend MCP views (tool catalog, tool-call timeline)** | SCAFFOLDED | 9–10 — the ledger rows exist; nothing renders them |
 | Authentication | ROADMAP | — |
 | Multi-tenancy | ROADMAP | — |
@@ -348,7 +354,8 @@ They are counted by the registry and excluded from execution by `implemented_det
 | **Deterministic rubric harness** | **IMPLEMENTED** | 8 — `make eval`, non-zero exit on failure, `$0.000000` |
 | **15 workflow rubric checks** | **IMPLEMENTED** | 8 — all passing, **each with a negative test** |
 | **Negative corpus** | **IMPLEMENTED** | 8 — proves the evaluator can fail; schema-prevented cases documented as such |
-| **Append-only evaluation history** | **IMPLEMENTED** | 8 — failed attempts preserved across later passes |
+| **Append-only evaluation history** | **IMPLEMENTED** | 8, ordered in 10 — failed attempts preserved across later passes; migration 0008 adds a monotonic `seq` because `started_at` is frozen in fixture mode and ties |
+| **Fixture freshness gate** | **IMPLEMENTED** | 10 — `scripts/check_fixtures.py`, no database and no network. Detects prompt, schema, builder, and renderer edits. **Cannot** recompute the rendered prompt digest; the integration suite owns that half |
 | **Prompt-injection corpus (6 cases)** | **IMPLEMENTED** | 8 — containment defined structurally, never as model obedience |
 | **Untrusted-labelling invariant** | **IMPLEMENTED** | 8 — cross-cutting; reported separately so the corpus count stays 6 |
 | **Policy-bypass checks (5)** | **IMPLEMENTED** | 8 — a forged APPROVED row on a DENY still leaves no effect |
@@ -366,9 +373,12 @@ They are counted by the registry and excluded from execution by `implemented_det
 | Capability | Status |
 |---|---|
 | Docker Compose (PostgreSQL 16, port 55432) | **IMPLEMENTED** — container healthy, no conflict with the local 5432 |
-| Alembic migrations | **IMPLEMENTED** — `0001` baseline (29 tables, 26 enum types), `0002` sequence + unique; every downgrade tested |
+| Alembic migrations | **IMPLEMENTED** — `0001` baseline (29 tables, 26 enum types) through `0008`; every downgrade tested, and `alembic check` reports no drift |
 | Deterministic seeding | **IMPLEMENTED** — 92 rows, byte-identical per seed, idempotent |
-| GitHub Actions CI | **IMPLEMENTED** (full matrix Session 10) — every local gate runs on push and PR |
+| GitHub Actions CI | **IMPLEMENTED** — six jobs as of Session 10: `quality`, `test`, `frontend`, `contract`, `fixtures`, `secrets`. Every local gate runs on push and PR; no `continue-on-error` anywhere |
+| **Frontend CI gate** | **IMPLEMENTED** (Session 10) — install `--frozen-lockfile`, generated-types freshness, typecheck, build, then tests. Build precedes tests because the offline scan reads the built output |
+| **OpenAPI contract-drift gate** | **IMPLEMENTED** (Session 10) — two halves: `api.ts` must match the committed schema, and the schema must match the live app. Both proven to fire; **CI never auto-commits regenerated files** |
+| **Fresh-checkout verification** | **IMPLEMENTED** (Session 10) — install, migrate, seed, demo, eval, 1011 backend tests, frontend build and 55 tests, from a clone-equivalent tree against a throwaway database |
 | Offline fixture demo mode | **IMPLEMENTED** (Session 3) — a full run completes with `socket.socket` refusing; a fixture miss raises and persists nothing. The fixtures themselves are **SIMULATED** (hand-authored, ADR-0013) |
 | Cloud deployment | ROADMAP — requires approval (rule 20) |
 | Message broker | ROADMAP — see ADR-0006 |

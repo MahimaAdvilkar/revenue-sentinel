@@ -224,12 +224,20 @@ Arriving later: `POST /incidents/{ref}/approve` and `/reject` (Session 6),
 
 ## 5. Deployment design
 
-**Frontend (Session 9).** `apps/web` is Next.js 16 + React 19 + TypeScript. The API
+**Frontend (Sessions 9–10).** `apps/web` is Next.js 16 + React 19 + TypeScript, seven
+read-only screens. The API
 contract is **generated** from FastAPI's OpenAPI schema into `apps/web/generated`
 (ADR-0023), so a backend field rename breaks the frontend build rather than rendering an
 empty cell. Fetching lives in one typed client layer (`apps/web/lib/api.ts`); components
 do not call `fetch`. The runtime is offline — no CDN fonts, analytics, or remote assets —
-and a test verifies that against the *built output* rather than the source.
+and a test verifies that against the *built output* rather than the source — which is why
+CI builds before it tests.
+
+**The integration catalogue is derived, not declared.** `integrations/catalogue.py` reads
+each adapter module for its `INTEGRATION_STATUS` (through the same `status_of` the MCP
+server uses to stamp tool results) and parses the "what changes when this becomes real"
+section out of the module docstring. Nothing about an integration is written in the API or
+the UI, so the catalogue cannot disagree with the adapter that would serve the request.
 
 v1 is deliberately small: one API process, one database, one frontend. No broker, no
 cache, no collector.

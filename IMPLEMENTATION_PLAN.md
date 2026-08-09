@@ -455,30 +455,40 @@ audit trail or the approval inbox.
 
 ---
 
-## Session 10 — Remaining surfaces, CI, release readiness
+## Session 10 — Remaining surfaces, CI, release readiness ✅ COMPLETE
 
 **Objective.** Complete the dashboard and harden the build.
 
-**Files / modules** — cost center, evaluation center, integration catalog,
-`.github/workflows/ci.yml` (full matrix), `Makefile` (demo targets), `scripts/record.py`
+**Delivered** — `api/centres.py`, `integrations/catalogue.py`, `alembic/0008`, three
+screens under `apps/web/app/`, `scripts/check_fixtures.py`, three new CI jobs.
+**1011 backend tests, 55 frontend tests, 0 skipped, 0 xfailed.**
 
 **Acceptance criteria**
-1. Cost center: period spend vs budget, per-incident cost, model mix, cache effectiveness
-2. Evaluation center: latest suite result, per-check expected vs actual, security results
-3. Integration catalog: every integration with its IMPLEMENTED / SIMULATED / SCAFFOLDED / ROADMAP status
-4. CI runs every gate on push and PR, offline, with no API key
-5. Fixture-freshness check fails when a prompt template changes without regenerated fixtures
-6. `make demo` runs the complete scenario offline, end to end
-7. Live smoke test exists as a manual, opt-in target
-8. Fresh clone verified: install → run → test → demo
 
-**Tests.** Full suite green in CI; fresh-clone verification performed and recorded.
+| # | Criterion | Result |
+|---|---|---|
+| 1 | Cost centre: period spend vs budget, per-incident cost, model mix, cache effectiveness | ✅ — and cache effectiveness reports **`observed: false`, not `0%`**. A per-incident test puts non-zero money in the ledger, because on a `$0.000000` run a real aggregation and a placeholder look identical |
+| 2 | Evaluation centre: history, per-check expected vs actual, security results | ✅ — **append-only, never collapsed to a status**. Migration 0008 gives it a total order; `started_at` is frozen in fixture mode and ties |
+| 3 | Integration catalogue with every integration's status | ✅ — status **and** roadmap copy read from the adapter modules. A test moves `crm.INTEGRATION_STATUS` and asserts the API follows |
+| 4 | CI runs every gate on push and PR, offline, no API key | ✅ — six jobs, no `continue-on-error`, no auto-commit of regenerated files |
+| 5 | Fixture-freshness check fails when a prompt template changes | ✅ — `template_digest` over system prompt, schema, builder, and every renderer. 12 tests drive it against broken fixtures |
+| 6 | `make demo` runs the complete scenario offline | ✅ — unchanged, and re-verified from a fresh checkout |
+| 7 | Live smoke test as a manual, opt-in target | ⛔ **Deliberately not built.** It would need an API key and would spend money; `make record` already occupies that role and has never been run (ADR-0013, rules 12 and 20) |
+| 8 | Fresh clone verified: install → run → test → demo | ✅ **with a stated limitation** — verified against a tree materialised from `git ls-files` plus untracked-not-ignored files, because the work is uncommitted by instruction. Byte-for-byte what a clone will contain once committed |
 
-**Demo result.** `make demo` end to end, plus the complete dashboard.
+**Deviations.**
 
-**Risks.** CI environment differences from local. Fixture staleness discovered late.
+* **Criterion 7 was declined, not missed.** See above.
+* **A migration was added that the plan did not anticipate.** `evaluation_runs` had no
+  reliable order: `started_at` is caller-supplied and frozen, `created_at` is the
+  transaction timestamp. An append-only history whose order is arbitrary cannot show that
+  a failure preceded a pass.
+* **A test-isolation defect was found and fixed.** A committed `budgets` row outlived its
+  test and failed three unrelated ones, including the 0007 downgrade guard.
 
-**Must remain unfinished.** No cloud deployment (rules 16 and 20).
+**Must remain unfinished.** No cloud deployment (rules 16 and 20). Authentication, live
+integrations, live model usage, `INDETERMINATE` reconciliation, concurrency-safe global
+budgets, and OTLP/Prometheus export all carry into Session 11.
 
 ---
 

@@ -123,7 +123,7 @@ requirements 1–13 are each phrased as an assertion it makes.
 
 ### Dashboard
 
-**Status (Session 9): four screens IMPLEMENTED, read-only.**
+**Status (Session 10): seven screens IMPLEMENTED, read-only. Dashboard scope is complete.**
 
 | Screen | Question it answers | Status |
 |---|---|---|
@@ -131,8 +131,19 @@ requirements 1–13 are each phrased as an assertion it makes.
 | Incident queue | Which incidents need attention, and in what order? | ✅ |
 | Incident detail + timeline | What happened on this deal, why, and what did it cost? | ✅ |
 | Approval inbox | What is waiting on a person? | ✅ **read-only** |
-| Cost center | — | Session 10 |
-| Evaluation center | — | Session 10 |
+| Cost centre | What has this cost, against which budget, on which incident? | ✅ |
+| Evaluation centre | Has it ever failed its own checks, and when? | ✅ **history, not a status** |
+| Integration catalogue | What is actually connected, and what changes when it is real? | ✅ |
+
+**Two panels deliberately show no number.** Cache effectiveness reports *never observed*
+rather than `0%`: the counters are zero because no live API call has ever been made, and a
+zero would be a measurement claim this system cannot support. The model mix reports the
+replayed share beside the call count, so it cannot be read as live routing behaviour.
+
+**The evaluation centre is a list, not a status.** ADR-0021 made attempts append-only so a
+later pass cannot erase an earlier failure; a screen showing only the newest result would
+undo that in the presentation layer. Ordering is by insertion sequence, because
+`started_at` is frozen in fixture mode and ties.
 
 **The approval inbox has no Approve button, deliberately.** There is no authentication in
 this system, so a button would imply a session and an accountable actor that do not exist

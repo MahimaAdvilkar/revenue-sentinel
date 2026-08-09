@@ -10,14 +10,15 @@ cost, and evaluates its own behaviour.
 
 ## ⚠️ Current status — read this first
 
-> **Session 9 of 11 is complete: detect, investigate, decide, approve, execute, account
+> **Session 10 of 11 is complete: detect, investigate, decide, approve, execute, account
 > for every cent, evaluate itself — and show all of it in a dashboard. Offline and for
 > free.**
 >
 > `make investigate INCIDENT=INC-001` produces a plan, six evidence items, two hypotheses
 > each citing real evidence, **$108,000 weighted / $32,130 at risk**, and three ranked
 > interventions carrying **one ALLOW, one REQUIRE_APPROVAL and one DENY** — with no API key
-> and no network. Verified by **962 backend tests** and **36 frontend tests**.
+> and no network. Verified by **1011 backend tests** and **55 frontend tests**, all
+> re-run from a fresh checkout.
 >
 > **The GTM MCP server is real.** 15 narrow, strictly-typed tools; no `run_sql`, no
 > `http_request`. Two transports, both IMPLEMENTED: the in-process client the graph and
@@ -74,9 +75,10 @@ cost, and evaluates its own behaviour.
 > not mean the model obeyed — it means the payload could not escape its block, could not
 > authorise an action, and could not reach a capability that does not exist.
 >
-> **There is a dashboard, and it cannot approve anything.** Four screens — executive
-> overview, incident queue, incident detail with the trace-correlated timeline, and the
-> approval inbox. The inbox renders the exact CLI command rather than a button: there is
+> **There is a dashboard, and it cannot approve anything.** Seven screens — executive
+> overview, incident queue, incident detail with the trace-correlated timeline, the
+> approval inbox, and the Session 10 centres: cost, evaluation, and the integration
+> catalogue. The inbox renders the exact CLI command rather than a button: there is
 > no authentication in this system, so a button would imply a session and an accountable
 > user that do not exist (ADR-0022). Three tests enforce that — no mutation route in the
 > API, none in the generated TypeScript contract, and no button, form, or input on the
@@ -85,8 +87,24 @@ cost, and evaluates its own behaviour.
 > **The frontend types are generated from the API**, so a backend field rename breaks the
 > frontend build (ADR-0023). It caught four missing fields the day it was wired.
 >
-> What does not exist yet: **the cost and evaluation centers.** See
-> [`PROJECT_STATUS.md`](PROJECT_STATUS.md) for the precise state.
+> **Two of those screens refuse to show a number.** Cache effectiveness reports *never
+> observed* rather than `0%` — no live API call has ever been made, so there is nothing to
+> measure, and a zero would read as "caching works badly". The model mix reports how many
+> calls were replayed beside how many were made, because in v1 they are equal and a mix
+> that did not say so would look like a routing measurement.
+>
+> **The evaluation centre is a list, not a status.** A failed attempt stays visible after a
+> later pass, ordered by insertion sequence rather than by a timestamp that is frozen in
+> fixture mode and therefore ties.
+>
+> **The integration catalogue reads the adapters.** Both the SIMULATED status and the "what
+> changes when this becomes real" notes come out of each adapter module — the status via
+> the same constant stamped on every tool result, the notes parsed from the module's own
+> docstring. A catalogue that could disagree with the adapters would be worse than none.
+>
+> What does not exist yet: **authentication, live integrations, live model usage,
+> `INDETERMINATE` reconciliation, concurrency-safe global budgets, and OTLP/Prometheus
+> export.** See [`PROJECT_STATUS.md`](PROJECT_STATUS.md) for the precise state.
 >
 > **All integrations are SIMULATED by design.** No real HubSpot, Salesforce, Gmail, Slack,
 > customer, or employer data is connected — now or during the initial build. Every
@@ -212,7 +230,7 @@ make migrate            # 29 tables, 27 native enum types
 make seed               # 92 deterministic rows, all is_simulated = true
 make ingest             # detect signals and open incidents (SIMULATED source feed)
 make investigate        # run the investigation graph offline (INCIDENT=INC-001)
-make check              # lint, format, mypy --strict, boundaries, 962 tests
+make check              # lint, format, mypy --strict, boundaries, 1011 tests
 make api                # then: curl localhost:8000/incidents/INC-001
 make mcp                # the GTM MCP server over stdio (SIMULATED adapters)
 make demo               # the whole scenario end to end — offline, $0, resets local data
@@ -226,7 +244,14 @@ make web                # dashboard on :3000
 make web-test           # frontend typecheck + Vitest
 make generate-api-types # regenerate the TS contract after an API change
 
+# Fixture freshness — no database, no network, no model call
+uv run python -m scripts.check_fixtures
 ```
+
+**CI runs all of this on every push and pull request**, across six jobs: `quality`,
+`test`, `frontend`, `contract`, `fixtures`, and `secrets`. Nothing is marked
+`continue-on-error`, and regenerated files are never auto-committed — a stale contract
+fails the build instead of being silently fixed.
 
 Confirm the golden scenario landed:
 
@@ -259,6 +284,10 @@ to the wrong database.
 - Not deployed anywhere
 - Not measuring recommendation quality or intervention effectiveness — that needs outcome
   data this project does not have, and reporting a number without it would be fabrication
+- Not measuring cache effectiveness — the counters exist and have never been non-zero,
+  which the dashboard states rather than rounding to `0%`
+- Not exactly-once: execution is at-least-once with an explicit `INDETERMINATE` state, and
+  there is no reconciliation tooling for it yet
 
 Full list in [`docs/product-requirements.md`](docs/product-requirements.md) §7 and
 [`docs/scaling-roadmap.md`](docs/scaling-roadmap.md).

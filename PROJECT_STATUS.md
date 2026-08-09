@@ -1,8 +1,8 @@
 # Project Status
 
 **Last updated:** 2026-08-08
-**Current milestone:** Session 9 — Dashboard ✅ **COMPLETE**
-**Next milestone:** Session 10 — Cost & evaluation centers (awaiting approval)
+**Current milestone:** Session 10 — Remaining surfaces, CI, release readiness ✅ **COMPLETE**
+**Next milestone:** Session 11 — Hardening and close-out (awaiting approval)
 
 ---
 
@@ -17,8 +17,10 @@ figures did not move by a cent.
 | Question | Answer |
 |---|---|
 | Can you run it? | Yes — `make setup && make up && make migrate && make seed && make ingest && make investigate` |
-| Can you run the tests? | Yes — **962 backend, 0 skipped, 0 xfailed**, plus **36 frontend** |
-| **Is there a dashboard?** | **Yes.** Four screens — overview, incident queue, incident detail with timeline, approval inbox. `make web` |
+| Can you run the tests? | Yes — **1011 backend, 0 skipped, 0 xfailed**, plus **55 frontend** |
+| **Is there a dashboard?** | **Yes.** Seven screens — overview, incident queue, incident detail, approval inbox, **cost centre, evaluation centre, integration catalogue**. `make web` |
+| **Does a fresh checkout work?** | **Yes, verified in Session 10** — install, migrate, seed, demo, eval, 1011 backend tests, and the frontend build all pass from a clone-equivalent tree |
+| **Does CI gate the frontend?** | **Yes.** Contract freshness, typecheck, build, and tests — with the offline scan running against the built output |
 | Can you approve in the browser? | **No, deliberately.** The inbox shows the CLI command. There is no auth, so a button would imply accountability that does not exist (ADR-0022) |
 | Does detection work? | Yes — 1 signal across 15 opportunities, `INC-001` at `HIGH` |
 | Does the investigation work? | Yes — **6 nodes, 7 transitions**, 6 evidence items, 2 hypotheses, 3 ranked interventions |
@@ -332,6 +334,86 @@ and fails on any reference to a font CDN, analytics, or telemetry host.
 
 ---
 
+### Session 10 — Remaining surfaces, CI, release readiness ✅
+
+**Delivered**
+
+| Group | Detail |
+|---|---|
+| `api/centres.py` | `GET /cost`, `GET /evaluation/runs`, `GET /integrations` — read-only, like everything else the dashboard consumes |
+| `integrations/catalogue.py` | The catalogue read **out of the adapters**: status via `status_of`, roadmap copy parsed from each module's own docstring |
+| `alembic/0008` | `evaluation_runs.seq` — an `IDENTITY ALWAYS` column, because the history had no reliable order |
+| `apps/web/app/cost`, `/evaluation`, `/integrations` | Three screens |
+| `scripts/check_fixtures.py` | Fixture freshness, with a `template_digest` that detects prompt and renderer edits without a database |
+| `.github/workflows/ci.yml` | Three new jobs: `frontend`, `contract`, `fixtures` |
+| `tests/` | **49 new — 1011 total**, plus **19 new frontend — 55 total** |
+
+**Two things this session refused to display.**
+
+*Cache effectiveness is `observed: false`, not `0%`.* The counters are all zero because no
+live API call has ever been made. `0%` reads as "caching works badly"; the truth is that
+caching has never run. The API returns a nullable value with a sentence saying so, and the
+UI renders a distinct component rather than a number. A schema test asserts `value` is
+nullable, because if it were a required number the API would have no way to say anything
+but a rate.
+
+*The model mix reports `replayed` beside `calls`.* In v1 they are equal. A mix that did not
+say so would read as a routing measurement of live models.
+
+**The evaluation history had no reliable order, and now does.** `started_at` is caller-
+supplied and frozen at `EVALUATION_TIMESTAMP` in fixture mode; `created_at` defaults to
+`now()`, which in PostgreSQL is the *transaction* timestamp. Two attempts recorded in one
+transaction tied on both, so the failure could render above or below the later pass,
+differently per request. Probed rather than assumed: six recorded runs share **one**
+`started_at`, three rows written in one transaction share **one** `created_at`, and UUID
+order matched neither. Migration 0008 adds a monotonic `seq` and the history is ordered by
+it. It is `IDENTITY ALWAYS`, so nothing can renumber the history — an append-only log
+whose ordering key is writable has an editable order. Seven tests in
+`test_evaluation_ordering.py` cover the ties, the total order, the surviving failure, and
+a downgrade/re-upgrade **with rows present**.
+
+The honest limit: this is *insert* order. Under concurrent transactions a higher `seq`
+could commit first. For an append-only record of attempts, insert order is what "recorded
+first" means.
+
+**The integration catalogue reads the adapters rather than describing them.** Both the
+status and the "what changes when this becomes real" text come out of the module — the
+latter parsed from the docstring section every adapter already carried. A test moves
+`crm.INTEGRATION_STATUS` to `"IMPLEMENTED"` and asserts the API and `any_real` follow;
+another asserts every roadmap paragraph on the wire appears verbatim in the adapter's own
+docstring. The `messaging` parser skips the bold paragraph *before* the heading, so "there
+is no send method" is not filed as a future change.
+
+**A leaked test row failed three unrelated tests, which is the useful part.** The new
+budget-precision test committed a `budgets` row that `_cleanup` did not truncate. It broke
+a test asserting an unbudgeted system is not blocked, and the 0007 downgrade guard —
+which correctly refused to discard sub-cent spend. Fixed by truncating `budgets` and by
+cleaning on the way in as well as out.
+
+**Fixture freshness, and what it cannot prove.** Each fixture now records a
+`template_digest` over the node's system prompt, its output schema, the agent function
+that builds the request, and every renderer in `prompts.py`. Editing any of them fails CI
+in seconds, with no database and no network. It **cannot** recompute the real prompt
+digest, which covers rendered user content and therefore needs seeded data — the
+integration suite catches that, because it runs the graph and the client verifies the true
+digest on load. A test pins the distinction so nobody reads a green fixture job as "the
+fixtures are correct". Twelve tests drive the checker against deliberately broken fixture
+directories; a gate nobody has seen fail is a gate nobody knows works.
+
+**Fresh-checkout verification.** Performed against a tree materialised from
+`git ls-files` plus untracked-not-ignored files — byte-for-byte what a clone would contain
+once this work is committed — in a temporary directory, against a throwaway database. A
+true `git clone` was not possible because the work is uncommitted by instruction. Install,
+migrate, `alembic check`, seed, demo, eval, all gates, fixture freshness, **1011 backend
+tests**, frontend install, typecheck, build, and **55 frontend tests** all passed.
+`api.ts` and `openapi.json` both regenerated byte-identical. Re-run against the final tree
+after the ordering tests landed, so the numbers recorded here are the ones that ran.
+
+**Both contract gates were proven to fire**, not merely written: hand-editing `api.ts` and
+regenerating produces a diff, and adding a field to an API model changes `openapi.json`.
+
+---
+
 ## What is real and what is not
 
 **Real:** the graph and its four nodes; transition recording before each node; the LLM
@@ -361,9 +443,15 @@ investigation graph, and none has ever been executed.** `run_investigation` bind
 write attempted from that path raises rather than executing — and certainly not under the
 allow-everything stub. **`StubPolicyEngine` was never used to demonstrate a write.**
 
-**Not real, and not claimed to be:** execution, the retry engine, the approval UI and its
-endpoints, cost governance, evaluation, and the dashboard. **Nothing the policy engine
-allows is carried out** — an ALLOW in Session 5 is a recorded decision, not an action. There is **no
+> **Sessions 6–10 moved several of these.** Execution, the retry engine, cost governance,
+> evaluation, and the dashboard are all real now; the paragraph below is preserved as
+> written at Session 5 and is superseded by the milestone entries above. What has *not*
+> moved: authentication, live integrations, live model usage, `INDETERMINATE`
+> reconciliation, concurrency-safe global budgets, and OTLP/Prometheus export.
+
+**Not real, and not claimed to be** *(as of Session 5)*: execution, the retry engine, the
+approval UI and its endpoints, cost governance, evaluation, and the dashboard. **Nothing
+the policy engine allows is carried out** — an ALLOW in Session 5 is a recorded decision, not an action. There is **no
 `messaging_send_email` tool** and no send method on `MessagingPort` — Tier 3 is absent from
 the interface, not merely unrouted. **`BUDGET_EXCEEDED` is a defined error code with no
 real producer until Session 7**; nothing raises it today.
@@ -623,7 +711,18 @@ being none (ADR-0018).
 policy-classified, and tested, but nothing routes to it. `messaging_send_email` does not
 exist and `MessagingPort` has no send method.
 
-**Approvals have no UI.** The CLI is the whole interface. That is Session 9.
+**Approvals have no UI control.** The inbox screen shows the exact CLI command and offers
+no button, form, or input — asserted by test on every screen added since. There is no
+authenticated identity, so a button would imply accountability that does not exist
+(ADR-0022).
+
+**Cache effectiveness has never been measured**, and the system says so rather than
+reporting `0%`. Prompt caching is implemented in the pricing table and tested as
+arithmetic; no cache hit has ever occurred because no live call has ever been made.
+
+**The evaluation detail panel covers the latest attempt only.** `/evaluation/runs` returns
+summaries; per-check detail exists for the most recent attempt via `/evaluation/latest`.
+The screen states this rather than offering a row control that would do nothing.
 
 **The scoring bands are heuristics, and the claim for them is narrow.** They are not
 calibrated against historical outcomes — no such dataset exists for a synthetic account.
@@ -651,32 +750,37 @@ make setup && make up && make migrate && make seed
 make ingest                        # INC-001 opened at HIGH
 make investigate INCIDENT=INC-001  # offline, no key, $0 — evidence now via MCP
 make mcp                           # the GTM MCP server over stdio (SIMULATED adapters)
-make check                         # lint, format, mypy --strict, boundaries, 730 tests
+make check                         # lint, format, mypy --strict, boundaries, 1011 tests
+make demo                          # the whole scenario, offline, $0
+make eval                          # deterministic evaluation, no LLM judge
+make web                           # the dashboard — seven read-only screens
+make generate-api-types            # regenerate the OpenAPI contract and TS types
+uv run python -m scripts.check_fixtures   # fixture freshness, no database, no network
 uv run alembic downgrade base && uv run alembic upgrade head
 uv run alembic check               # no drift
 ```
 
 ---
 
-## Next milestone — Session 7: Cost governance
+## Next milestone — Session 11: Hardening and close-out
 
-**Objective.** Carry out what the policy layer approved, idempotently, with a durable
-checkpointer and a real human-in-the-loop interrupt.
+**Objective.** Close the gaps this project has been honest about rather than adding
+surface. Nothing in Session 10 created new debt; what remains is the debt that was
+recorded deliberately.
 
-**Session 5 leaves it well positioned:** the decisions exist and are recorded; the four
-write tools exist, are policy-gated, and are tested; `action_records.idempotency_key` is
-already `UNIQUE`. Session 6 wires the graph to act on an approval rather than inventing
-the authorisation model under deadline.
+**Carried into Session 11:**
 
-**Carried into Session 6:**
+1. **`INDETERMINATE` reconciliation.** The state is recorded correctly and there is no
+   tooling to resolve it (ADR-0017).
+2. **Concurrency-safe `GLOBAL` budgets.** Read-then-call is sound only because model calls
+   are serialized within a run (ADR-0019).
+3. **Authentication**, without which the dashboard stays read-only (ADR-0018, ADR-0022).
+4. **OTLP / Prometheus export.** Trace and span IDs are recorded and correlated; nothing
+   exports them.
+5. **Pin the stdio write-refusal shape** — carried since Session 4.
 
-1. Pin the client-visible shape of a stdio write refused for want of a policy engine.
-2. Add `approval_requests.requested_by` as a real column — see the accepted limitation in
-   ADR-0015.
-3. Replace `InMemorySaver` with the durable checkpointer (ADR-0012), which only becomes
-   load-bearing once an interrupt genuinely has to survive the process exiting.
-
-**Will remain unfinished:** cost governance, evaluation, the dashboard.
+**Will remain unfinished regardless:** live integrations and live model usage. Both need
+credentials and money, and neither is in scope for a portfolio build (rules 12, 20).
 
 ---
 
@@ -689,7 +793,9 @@ the authorisation model under deadline.
 | Ingestion honesty eroding as adapters land | **Re-checked at Session 4 and held.** Every adapter declares SIMULATED; an undeclared one raises; the status is stamped on every result and survives stdio |
 | Two transports drifting apart | Mitigated structurally: both call `dispatcher.dispatch`. Payload-equality test guards it |
 | Schema over-modelled before use | 12 tables unused; corrective revisions expected in 5–7 |
-| Session 9 dashboard overrun | Unchanged |
+| Session 9 dashboard overrun | Closed — the dashboard shipped in Session 9 and was extended in Session 10 |
+| **Fixtures going stale unnoticed** | **Mitigated in Session 10.** `template_digest` fails CI on a prompt or renderer edit; the integration suite still owns the rendered-content half |
+| **Frontend and backend contracts drifting** | **Mitigated in Session 10.** Two CI gates, both proven to fire |
 
 ---
 
@@ -698,8 +804,8 @@ the authorisation model under deadline.
 | Item | Value |
 |---|---|
 | Branch | `main`, tracking `origin/main` |
-| Pushed | Phase 0/1, Sessions 1–4 (39 commits, `82bee2b`) |
-| Session 5 | **Uncommitted** — awaiting review |
+| Pushed | Phase 0/1, Sessions 1–9 (`cecd5e0`, CI green) |
+| Session 10 | **Uncommitted** — awaiting review |
 
 ---
 
