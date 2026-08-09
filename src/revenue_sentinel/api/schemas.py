@@ -367,3 +367,34 @@ class EvaluationHistoryResponse(BaseModel):
     runs: list[EvaluationRunSummary]
     llm_judge_used: bool
     evaluation_cost: str
+
+
+class RoadmapNoteView(BaseModel):
+    """One headed paragraph of an adapter's "what changes when this becomes real"."""
+
+    heading: str
+    body: str
+
+
+class IntegrationView(BaseModel):
+    name: str
+    module: str
+    integration_status: str
+    port: str
+    summary: str
+    """The adapter docstring's first line."""
+
+    when_real: list[RoadmapNoteView]
+    """Parsed from the adapter's own docstring section -- never written in the API or the
+    UI. Empty only when the docstring is unavailable (see `when_real_documented`)."""
+
+    when_real_documented: bool
+    """`False` means the adapter did not document the section -- which under `python -O`
+    means docstrings were stripped. The UI says so rather than substituting copy."""
+
+
+class IntegrationCatalogueResponse(BaseModel):
+    integrations: list[IntegrationView]
+    any_real: bool
+    """`False` in v1. Computed from the declared statuses rather than hardcoded, so this
+    stops being false the moment a real adapter is bound."""

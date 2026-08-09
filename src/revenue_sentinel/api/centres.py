@@ -1,4 +1,4 @@
-"""The cost centre and the evaluation history.
+"""Cost centre, evaluation history, and the integration catalogue.
 
 All read-only, like everything else the dashboard consumes (ADR-0022).
 
@@ -29,14 +29,19 @@ from revenue_sentinel.api.schemas import (
     EvaluationHistoryResponse,
     EvaluationRunSummary,
     IncidentCostView,
+    IntegrationCatalogueResponse,
+    IntegrationView,
     ModelMixEntry,
     ObservedMetric,
+    RoadmapNoteView,
 )
 from revenue_sentinel.cost.pricing import cost_of
 from revenue_sentinel.db.models import evaluation as eval_orm
 from revenue_sentinel.db.models import observability as obs_orm
 from revenue_sentinel.db.models import workflow as workflow_orm
 from revenue_sentinel.domain.enums import CostType
+from revenue_sentinel.integrations.catalogue import catalogue
+from revenue_sentinel.integrations.status import SIMULATED
 
 router = APIRouter(tags=["centres"])
 
@@ -252,4 +257,36 @@ def evaluation_history(
         ],
         llm_judge_used=False,
         evaluation_cost="0.000000",
+    )
+
+
+@router.get("/integrations", response_model=IntegrationCatalogueResponse)
+def integration_catalogue() -> IntegrationCatalogueResponse:
+    """Every adapter, the status it declares, and the roadmap copy it wrote itself.
+
+    Both come out of the adapter module (`integrations/catalogue.py`): the status through
+    `status_of`, the same function the MCP server uses to stamp tool results, and the
+    "what changes when this becomes real" text out of the module docstring. Nothing on
+    this endpoint is written here. A catalogue that could disagree with the adapters would
+    be worse than no catalogue.
+    """
+    entries = catalogue()
+
+    return IntegrationCatalogueResponse(
+        integrations=[
+            IntegrationView(
+                name=entry.name,
+                module=entry.module,
+                integration_status=entry.status,
+                port=entry.port,
+                summary=entry.summary,
+                when_real=[
+                    RoadmapNoteView(heading=note.heading, body=note.body)
+                    for note in entry.when_real
+                ],
+                when_real_documented=entry.documented,
+            )
+            for entry in entries
+        ],
+        any_real=any(entry.status != SIMULATED for entry in entries),
     )
