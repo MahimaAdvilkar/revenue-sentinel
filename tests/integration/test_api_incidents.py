@@ -204,4 +204,8 @@ def test_the_route_surface_is_exactly_the_documented_endpoints(
         "/incidents/{incident_ref}/cost",
         "/approvals",
         "/evaluation/latest",
+        # Session 10 -- cost centre, evaluation history, integration catalogue
+        "/cost",
+        "/evaluation/runs",
+        "/integrations",
     }

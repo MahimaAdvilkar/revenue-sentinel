@@ -11,86 +11,11 @@ Three properties beyond "it returns 200":
 
 from __future__ import annotations
 
-from collections.abc import Iterator
-
-import pytest
-import sqlalchemy as sa
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
-from revenue_sentinel.api.main import create_app
-from revenue_sentinel.core.config import Settings
-from revenue_sentinel.db.models import governance as gov_orm
-from revenue_sentinel.db.seeding import seed_database
-from revenue_sentinel.events.pipeline import run_ingestion_cycle
-from revenue_sentinel.governance import approvals
-from revenue_sentinel.orchestration import runner
-
 INCIDENT = "INC-001"
-
-
-@pytest.fixture
-def dashboard(engine: Engine, settings: Settings) -> Iterator[TestClient]:
-    """A client over a database holding a **committed** golden run.
-
-    The app opens its own sessions, so it cannot see the rolled-back transaction the
-    other integration tests use -- the same reason `test_api_incidents.py` commits. This
-    fixture runs the full flow (ingest, investigate, approve, resume) and cleans up
-    afterwards.
-    """
-    _reset(engine)
-    with Session(engine) as setup:
-        seed_database(setup, seed=settings.seed, evaluated_at=settings.evaluation_timestamp)
-        run_ingestion_cycle(setup, evaluated_at=settings.evaluation_timestamp, settings=settings)
-        outcome = runner.run_investigation(setup, INCIDENT, settings=settings)
-        request = setup.scalar(
-            sa.select(gov_orm.ApprovalRequest).where(
-                gov_orm.ApprovalRequest.run_id == outcome.run_id
-            )
-        )
-        assert request is not None
-        approvals.decide(
-            setup,
-            request,
-            approved=True,
-            decided_by="usr:revenue-lead",
-            occurred_at=settings.evaluation_timestamp,
-        )
-        runner.resume_investigation(setup, INCIDENT, settings=settings)
-        setup.commit()
-
-    app = create_app(settings=settings, engine=engine)
-    with TestClient(app) as client:
-        yield client
-
-    _cleanup(engine)
-
-
-@pytest.fixture
-def client(dashboard: TestClient) -> TestClient:
-    """Alias, so schema-level tests read naturally."""
-    return dashboard
-
-
-def _reset(engine: Engine) -> None:
-    with engine.begin() as connection:
-        connection.execute(sa.text("ALTER SEQUENCE incident_ref_seq RESTART WITH 1"))
-        connection.execute(sa.text("ALTER SEQUENCE approval_ref_seq RESTART WITH 1"))
-
-
-def _cleanup(engine: Engine) -> None:
-    tables = (
-        "evaluation_results, evaluation_runs, action_records, approval_requests, "
-        "policy_evaluations, interventions, impact_assessments, hypothesis_evidence, "
-        "hypotheses, evidence_items, agent_decisions, model_calls, tool_calls, "
-        "cost_entries, workflow_transitions, workflow_runs, audit_events, incidents, "
-        "signals, normalized_events, raw_events, activities, usage_snapshots, "
-        "engagement_events, support_issues, company_profiles, opportunities, accounts"
-    )
-    with engine.begin() as connection:
-        connection.execute(sa.text(f"TRUNCATE {tables} RESTART IDENTITY CASCADE"))
-    _reset(engine)
 
 
 # ---------------------------------------------------------------------------

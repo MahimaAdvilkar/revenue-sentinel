@@ -44,6 +44,10 @@ describe("generated OpenAPI contract", () => {
       "/incidents/{incident_ref}/timeline",
       "/incidents/{incident_ref}/cost",
       "/approvals",
+      "/cost",
+      "/evaluation/latest",
+      "/evaluation/runs",
+      "/integrations",
     ]) {
       expect(paths[path], `${path} missing from the schema`).toBeDefined();
       expect(paths[path]?.get, `${path} should be a GET`).toBeDefined();
@@ -62,6 +66,29 @@ describe("generated OpenAPI contract", () => {
 
     const impact = components.schemas.ImpactView?.properties;
     expect(impact?.at_risk_value?.type).toBe("string");
+
+    const centre = components.schemas.CostCentreResponse?.properties;
+    expect(centre?.total_cost?.type).toBe("string");
+
+    const budget = components.schemas.BudgetView?.properties;
+    expect(budget?.limit_usd?.type).toBe("string");
+    expect(budget?.remaining_usd?.type).toBe("string");
+  });
+
+  it("models an unobserved metric as nullable with a note, not as a number", () => {
+    // The schema itself has to make "never measured" representable. If `value` were a
+    // required number, the API would have no way to say anything other than a rate --
+    // and 0 is the only value it could send.
+    const components = schema.components as {
+      schemas: Record<
+        string,
+        { required?: string[]; properties?: Record<string, { anyOf?: { type?: string }[] }> }
+      >;
+    };
+    const metric = components.schemas.ObservedMetric;
+    expect(metric?.required).toEqual(expect.arrayContaining(["observed", "value", "note"]));
+    const valueTypes = metric?.properties?.value?.anyOf?.map((entry) => entry.type) ?? [];
+    expect(valueTypes).toContain("null");
   });
 
   it("declares tracing identifiers as nullable rather than required", () => {

@@ -7,7 +7,10 @@
  */
 import type {
   ApprovalInbox,
+  CostCentre,
   CostSummary,
+  EvaluationHistory,
+  IntegrationCatalogue,
   Investigation,
   Intervention,
   Overview,
@@ -146,4 +149,152 @@ export const approvals: ApprovalInbox = {
   ],
   identity_note:
     "Approval is available on the CLI only. `--as` is a CLAIMED identity, not an authenticated one: this system has no authentication (ADR-0018).",
+};
+
+// ---------------------------------------------------------------------------
+// Session 10 centres.
+// ---------------------------------------------------------------------------
+
+export const costCentre: CostCentre = {
+  total_cost: "0.000000",
+  model_cost: "0.000000",
+  tool_cost: "0.000000",
+  model_calls: 4,
+  tool_calls: 9,
+  pricing_versions: ["2026-08-01"],
+  budgets: [
+    {
+      scope: "global",
+      scope_ref: null,
+      limit_usd: "25.000000",
+      consumed_usd: "0.000150",
+      remaining_usd: "24.999850",
+      hard_stop: true,
+    },
+  ],
+  by_incident: [
+    {
+      incident_ref: "INC-001",
+      model_cost: "0.000000",
+      tool_cost: "0.000000",
+      total_cost: "0.000000",
+      model_calls: 4,
+      tool_calls: 9,
+    },
+  ],
+  model_mix: [
+    {
+      model_id: "claude-sonnet-5",
+      calls: 4,
+      cost_usd: "0.000000",
+      replayed: 4,
+    },
+  ],
+  cache_effectiveness: {
+    observed: false,
+    value: null,
+    note:
+      "Never observed. No live API call has been made, so no cache hit has ever " +
+      "occurred. This is an absence of data, not a hit rate of zero.",
+  },
+  concurrency_note:
+    "GLOBAL budget enforcement is not atomic across concurrent independent runs. " +
+    "Read-then-call is sound only because model calls are serialized within a run " +
+    "(ADR-0019).",
+};
+
+/** Two attempts: an earlier failure, then a pass. The failure must survive. */
+export const evaluationHistory: EvaluationHistory = {
+  runs: [
+    {
+      evaluation_run_id: "11111111-1111-1111-1111-111111111111",
+      sequence: 2,
+      suite_name: "golden-scenario",
+      evaluator_version: "1.0.0",
+      started_at: "2026-08-01T12:00:00Z",
+      passed: 6,
+      total: 6,
+      outcome: "passed",
+    },
+    {
+      evaluation_run_id: "22222222-2222-2222-2222-222222222222",
+      sequence: 1,
+      suite_name: "golden-scenario",
+      evaluator_version: "1.0.0",
+      started_at: "2026-08-01T12:00:00Z",
+      passed: 4,
+      total: 6,
+      outcome: "failed",
+    },
+  ],
+  llm_judge_used: false,
+  evaluation_cost: "0.000000",
+};
+
+export const evaluationLatest = {
+  suite_name: "golden-scenario",
+  evaluator_version: "1.0.0",
+  passed: 6,
+  total: 6,
+  llm_judge_used: false,
+  evaluation_cost: "0.000000",
+  results: [
+    {
+      check_name: "incident_detected",
+      outcome: "passed",
+      expected: "INC-001 open",
+      actual: "INC-001 open",
+      detail: null,
+    },
+  ],
+};
+
+/** Two adapters, both declaring SIMULATED, with roadmap copy the adapters wrote. */
+export const integrations: IntegrationCatalogue = {
+  integrations: [
+    {
+      name: "CRM",
+      module: "integrations/simulated/crm.py",
+      integration_status: "SIMULATED",
+      port: "integrations/ports/crm.py",
+      summary: "CRM adapter -- SIMULATED.",
+      when_real: [
+        { heading: "API", body: "HubSpot CRM v3 or Salesforce REST v60." },
+        { heading: "Auth", body: "OAuth 2.0 authorisation-code flow with refresh tokens." },
+        { heading: "Rate limits", body: "HubSpot: 100 requests / 10s per portal." },
+        { heading: "Pagination", body: "Both cursor-paginate." },
+      ],
+      when_real_documented: true,
+    },
+    {
+      name: "Messaging",
+      module: "integrations/simulated/messaging.py",
+      integration_status: "SIMULATED",
+      port: "integrations/ports/messaging.py",
+      summary: "Messaging adapter -- SIMULATED.",
+      when_real: [
+        { heading: "API", body: "Gmail users.drafts.create, or Microsoft Graph /me/messages." },
+        { heading: "Auth", body: "Gmail needs gmail.compose -- a write scope on a mailbox." },
+        { heading: "Rate limits", body: "Gmail: 250 quota units/user/second." },
+        { heading: "Idempotency", body: "Gmail draft creation is not idempotent." },
+      ],
+      when_real_documented: true,
+    },
+  ],
+  any_real: false,
+};
+
+/**
+ * The same catalogue with one adapter bound for real.
+ *
+ * This shape cannot occur in v1 -- which is exactly why it is a fixture. The screen's
+ * behaviour when an integration stops being simulated is the behaviour nobody can test by
+ * waiting for it.
+ */
+export const integrationsWithOneReal: IntegrationCatalogue = {
+  integrations: [
+    { ...integrations.integrations[0]!, integration_status: "IMPLEMENTED" },
+    integrations.integrations[1]!,
+  ],
+  any_real: true,
 };

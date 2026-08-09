@@ -60,9 +60,16 @@ def test_health_returns_503_when_the_database_is_unreachable(settings: Settings)
 
     Reported through the status code, not only the body, so an orchestrator can act
     on it without parsing JSON.
+
+    The broken URL is derived by *replacing the database component*, not by string-
+    substituting the name `revenue_sentinel`. The substitution version passed only when the
+    configured URL happened to contain that name: pointed at any other database it was a
+    no-op, the engine stayed healthy, and the test asserted 503 against a working
+    connection. Found by running the suite from a fresh checkout against a throwaway
+    database, where it returned 200.
     """
     broken = sa.create_engine(
-        settings.database_url.replace("/revenue_sentinel", "/definitely_not_a_database")
+        sa.engine.make_url(settings.database_url).set(database="definitely_not_a_database")
     )
     app = create_app(settings=settings, engine=broken)
 
@@ -101,4 +108,8 @@ def test_the_application_exposes_exactly_the_expected_routes(client: TestClient)
         "/incidents/{incident_ref}/cost",
         "/approvals",
         "/evaluation/latest",
+        # Session 10 -- cost centre, evaluation history, integration catalogue
+        "/cost",
+        "/evaluation/runs",
+        "/integrations",
     }
