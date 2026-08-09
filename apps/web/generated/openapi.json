@@ -1,0 +1,1748 @@
+{
+  "components": {
+    "schemas": {
+      "AccountSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "account_ref": {
+            "title": "Account Ref",
+            "type": "string"
+          },
+          "is_simulated": {
+            "title": "Is Simulated",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "segment": {
+            "title": "Segment",
+            "type": "string"
+          }
+        },
+        "required": [
+          "account_ref",
+          "name",
+          "segment",
+          "is_simulated"
+        ],
+        "title": "AccountSummary",
+        "type": "object"
+      },
+      "ApprovalInboxItem": {
+        "properties": {
+          "approval_ref": {
+            "title": "Approval Ref",
+            "type": "string"
+          },
+          "approve_command": {
+            "title": "Approve Command",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "integration_status": {
+            "title": "Integration Status",
+            "type": "string"
+          },
+          "intervention_title": {
+            "title": "Intervention Title",
+            "type": "string"
+          },
+          "requested_by": {
+            "title": "Requested By",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "approval_ref",
+          "status",
+          "requested_by",
+          "expires_at",
+          "intervention_title",
+          "approve_command",
+          "integration_status"
+        ],
+        "title": "ApprovalInboxItem",
+        "type": "object"
+      },
+      "ApprovalInboxResponse": {
+        "properties": {
+          "identity_note": {
+            "title": "Identity Note",
+            "type": "string"
+          },
+          "pending": {
+            "items": {
+              "$ref": "#/components/schemas/ApprovalInboxItem"
+            },
+            "title": "Pending",
+            "type": "array"
+          }
+        },
+        "required": [
+          "pending",
+          "identity_note"
+        ],
+        "title": "ApprovalInboxResponse",
+        "type": "object"
+      },
+      "CostLedgerEntry": {
+        "properties": {
+          "amount_usd": {
+            "title": "Amount Usd",
+            "type": "string"
+          },
+          "cost_type": {
+            "title": "Cost Type",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "pricing_version": {
+            "title": "Pricing Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "cost_type",
+          "amount_usd",
+          "pricing_version"
+        ],
+        "title": "CostLedgerEntry",
+        "type": "object"
+      },
+      "CostSummaryResponse": {
+        "properties": {
+          "concurrency_note": {
+            "title": "Concurrency Note",
+            "type": "string"
+          },
+          "incident_ref": {
+            "title": "Incident Ref",
+            "type": "string"
+          },
+          "ledger": {
+            "items": {
+              "$ref": "#/components/schemas/CostLedgerEntry"
+            },
+            "title": "Ledger",
+            "type": "array"
+          },
+          "model_calls": {
+            "title": "Model Calls",
+            "type": "integer"
+          },
+          "model_cost": {
+            "title": "Model Cost",
+            "type": "string"
+          },
+          "pricing_versions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Pricing Versions",
+            "type": "array"
+          },
+          "tool_calls": {
+            "title": "Tool Calls",
+            "type": "integer"
+          },
+          "tool_cost": {
+            "title": "Tool Cost",
+            "type": "string"
+          },
+          "total_cost": {
+            "title": "Total Cost",
+            "type": "string"
+          }
+        },
+        "required": [
+          "incident_ref",
+          "model_cost",
+          "tool_cost",
+          "total_cost",
+          "model_calls",
+          "tool_calls",
+          "pricing_versions",
+          "concurrency_note",
+          "ledger"
+        ],
+        "title": "CostSummaryResponse",
+        "type": "object"
+      },
+      "ErrorResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ref"
+          },
+          "resource": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resource"
+          }
+        },
+        "required": [
+          "detail"
+        ],
+        "title": "ErrorResponse",
+        "type": "object"
+      },
+      "EvaluationResponse": {
+        "properties": {
+          "evaluation_cost": {
+            "title": "Evaluation Cost",
+            "type": "string"
+          },
+          "evaluator_version": {
+            "title": "Evaluator Version",
+            "type": "string"
+          },
+          "llm_judge_used": {
+            "title": "Llm Judge Used",
+            "type": "boolean"
+          },
+          "passed": {
+            "title": "Passed",
+            "type": "integer"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/EvaluationResultItem"
+            },
+            "title": "Results",
+            "type": "array"
+          },
+          "suite_name": {
+            "title": "Suite Name",
+            "type": "string"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "suite_name",
+          "evaluator_version",
+          "passed",
+          "total",
+          "llm_judge_used",
+          "evaluation_cost",
+          "results"
+        ],
+        "title": "EvaluationResponse",
+        "type": "object"
+      },
+      "EvaluationResultItem": {
+        "properties": {
+          "actual": {
+            "title": "Actual",
+            "type": "string"
+          },
+          "check_name": {
+            "title": "Check Name",
+            "type": "string"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "expected": {
+            "title": "Expected",
+            "type": "string"
+          },
+          "outcome": {
+            "title": "Outcome",
+            "type": "string"
+          }
+        },
+        "required": [
+          "check_name",
+          "outcome",
+          "expected",
+          "actual",
+          "detail"
+        ],
+        "title": "EvaluationResultItem",
+        "type": "object"
+      },
+      "EvidenceItemView": {
+        "properties": {
+          "content": {
+            "additionalProperties": true,
+            "title": "Content",
+            "type": "object"
+          },
+          "evidence_ref": {
+            "title": "Evidence Ref",
+            "type": "string"
+          },
+          "integration_status": {
+            "title": "Integration Status",
+            "type": "string"
+          },
+          "source_system": {
+            "title": "Source System",
+            "type": "string"
+          },
+          "tool_name": {
+            "title": "Tool Name",
+            "type": "string"
+          },
+          "trust_level": {
+            "title": "Trust Level",
+            "type": "string"
+          }
+        },
+        "required": [
+          "evidence_ref",
+          "source_system",
+          "tool_name",
+          "trust_level",
+          "content",
+          "integration_status"
+        ],
+        "title": "EvidenceItemView",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "HealthResponse": {
+        "additionalProperties": false,
+        "description": "The health payload. Typed so the Session 9 client can generate against it.",
+        "properties": {
+          "app_env": {
+            "title": "App Env",
+            "type": "string"
+          },
+          "database": {
+            "enum": [
+              "reachable",
+              "unreachable"
+            ],
+            "title": "Database",
+            "type": "string"
+          },
+          "demo_mode": {
+            "title": "Demo Mode",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "ok",
+              "degraded"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "version",
+          "app_env",
+          "demo_mode",
+          "database"
+        ],
+        "title": "HealthResponse",
+        "type": "object"
+      },
+      "HypothesisView": {
+        "properties": {
+          "cites": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Cites",
+            "type": "array"
+          },
+          "confidence": {
+            "title": "Confidence",
+            "type": "string"
+          },
+          "hypothesis_ref": {
+            "title": "Hypothesis Ref",
+            "type": "string"
+          },
+          "rank": {
+            "title": "Rank",
+            "type": "integer"
+          },
+          "statement": {
+            "title": "Statement",
+            "type": "string"
+          }
+        },
+        "required": [
+          "hypothesis_ref",
+          "statement",
+          "confidence",
+          "rank",
+          "cites"
+        ],
+        "title": "HypothesisView",
+        "type": "object"
+      },
+      "ImpactView": {
+        "properties": {
+          "at_risk_value": {
+            "title": "At Risk Value",
+            "type": "string"
+          },
+          "computed_by": {
+            "title": "Computed By",
+            "type": "string"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "method_version": {
+            "title": "Method Version",
+            "type": "string"
+          },
+          "pipeline_value": {
+            "title": "Pipeline Value",
+            "type": "string"
+          },
+          "weighted_value": {
+            "title": "Weighted Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "pipeline_value",
+          "weighted_value",
+          "at_risk_value",
+          "currency",
+          "computed_by",
+          "method_version"
+        ],
+        "title": "ImpactView",
+        "type": "object"
+      },
+      "IncidentDetail": {
+        "additionalProperties": false,
+        "description": "One incident with the signal and records it concerns.",
+        "properties": {
+          "account": {
+            "$ref": "#/components/schemas/AccountSummary"
+          },
+          "closed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Closed At"
+          },
+          "incident_ref": {
+            "title": "Incident Ref",
+            "type": "string"
+          },
+          "incident_type": {
+            "$ref": "#/components/schemas/IncidentType"
+          },
+          "opened_at": {
+            "format": "date-time",
+            "title": "Opened At",
+            "type": "string"
+          },
+          "opportunity": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OpportunitySummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "severity": {
+            "$ref": "#/components/schemas/Severity"
+          },
+          "signal": {
+            "$ref": "#/components/schemas/SignalSummary"
+          },
+          "status": {
+            "$ref": "#/components/schemas/IncidentStatus"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "incident_ref",
+          "incident_type",
+          "status",
+          "severity",
+          "title",
+          "opened_at",
+          "closed_at",
+          "account",
+          "opportunity",
+          "signal"
+        ],
+        "title": "IncidentDetail",
+        "type": "object"
+      },
+      "IncidentListResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "incidents": {
+            "items": {
+              "$ref": "#/components/schemas/IncidentSummary"
+            },
+            "title": "Incidents",
+            "type": "array"
+          }
+        },
+        "required": [
+          "count",
+          "incidents"
+        ],
+        "title": "IncidentListResponse",
+        "type": "object"
+      },
+      "IncidentStatus": {
+        "description": "The lifecycle in `docs/event-model.md` \u00a75.\n\nThe legal-transition map lives in `incidents/` and arrives in Session 2; this\nenum and `TERMINAL_INCIDENT_STATUSES` are the vocabulary only.",
+        "enum": [
+          "detected",
+          "triaged",
+          "investigating",
+          "analyzed",
+          "strategized",
+          "awaiting_approval",
+          "executing",
+          "completed",
+          "closed_rejected",
+          "expired",
+          "dismissed",
+          "failed"
+        ],
+        "title": "IncidentStatus",
+        "type": "string"
+      },
+      "IncidentSummary": {
+        "additionalProperties": false,
+        "description": "One row in the incident queue.",
+        "properties": {
+          "account_name": {
+            "title": "Account Name",
+            "type": "string"
+          },
+          "account_ref": {
+            "title": "Account Ref",
+            "type": "string"
+          },
+          "amount": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount"
+          },
+          "at_risk_value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At Risk Value"
+          },
+          "closed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Closed At"
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "incident_ref": {
+            "title": "Incident Ref",
+            "type": "string"
+          },
+          "incident_type": {
+            "$ref": "#/components/schemas/IncidentType"
+          },
+          "is_simulated": {
+            "title": "Is Simulated",
+            "type": "boolean"
+          },
+          "opened_at": {
+            "format": "date-time",
+            "title": "Opened At",
+            "type": "string"
+          },
+          "opportunity_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Opportunity Ref"
+          },
+          "severity": {
+            "$ref": "#/components/schemas/Severity"
+          },
+          "status": {
+            "$ref": "#/components/schemas/IncidentStatus"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "incident_ref",
+          "incident_type",
+          "status",
+          "severity",
+          "title",
+          "opened_at",
+          "closed_at",
+          "account_ref",
+          "account_name",
+          "opportunity_ref",
+          "amount",
+          "currency",
+          "at_risk_value",
+          "is_simulated"
+        ],
+        "title": "IncidentSummary",
+        "type": "object"
+      },
+      "IncidentType": {
+        "description": "Kept separate from `SignalType` even though v1's vocabularies coincide: an\nincident is a unit of work, and more than one signal type may eventually open\nthe same kind of incident.",
+        "enum": [
+          "stalled_opportunity",
+          "renewal_risk",
+          "deal_slippage",
+          "pqa_discovery",
+          "account_expansion",
+          "crm_data_quality",
+          "enrichment_cost_anomaly",
+          "campaign_underperformance"
+        ],
+        "title": "IncidentType",
+        "type": "string"
+      },
+      "IngestResponse": {
+        "additionalProperties": false,
+        "description": "The outcome of one ingestion cycle.\n\n`ingestion_status` is always `SIMULATED` in v1 and is returned on every\nresponse so a caller cannot mistake this for a real source feed.",
+        "properties": {
+          "evaluated_at": {
+            "format": "date-time",
+            "title": "Evaluated At",
+            "type": "string"
+          },
+          "events_normalized": {
+            "title": "Events Normalized",
+            "type": "integer"
+          },
+          "incident_refs": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Incident Refs",
+            "type": "array"
+          },
+          "incidents_opened": {
+            "title": "Incidents Opened",
+            "type": "integer"
+          },
+          "ingestion_status": {
+            "title": "Ingestion Status",
+            "type": "string"
+          },
+          "opportunities_evaluated": {
+            "title": "Opportunities Evaluated",
+            "type": "integer"
+          },
+          "raw_events_inserted": {
+            "title": "Raw Events Inserted",
+            "type": "integer"
+          },
+          "raw_events_offered": {
+            "title": "Raw Events Offered",
+            "type": "integer"
+          },
+          "signals_created": {
+            "title": "Signals Created",
+            "type": "integer"
+          },
+          "signals_deduplicated": {
+            "title": "Signals Deduplicated",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "ingestion_status",
+          "evaluated_at",
+          "raw_events_offered",
+          "raw_events_inserted",
+          "events_normalized",
+          "opportunities_evaluated",
+          "signals_created",
+          "signals_deduplicated",
+          "incidents_opened",
+          "incident_refs"
+        ],
+        "title": "IngestResponse",
+        "type": "object"
+      },
+      "InterventionView": {
+        "properties": {
+          "action_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Action Status"
+          },
+          "action_type": {
+            "title": "Action Type",
+            "type": "string"
+          },
+          "composite_score": {
+            "title": "Composite Score",
+            "type": "string"
+          },
+          "decision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision"
+          },
+          "executed": {
+            "title": "Executed",
+            "type": "boolean"
+          },
+          "expected_value": {
+            "title": "Expected Value",
+            "type": "string"
+          },
+          "integration_status": {
+            "title": "Integration Status",
+            "type": "string"
+          },
+          "matched_rules": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Matched Rules",
+            "type": "array"
+          },
+          "rank": {
+            "title": "Rank",
+            "type": "integer"
+          },
+          "rationale": {
+            "title": "Rationale",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "risk_tier": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Risk Tier"
+          },
+          "target_ref": {
+            "title": "Target Ref",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "rank",
+          "title",
+          "action_type",
+          "rationale",
+          "target_ref",
+          "expected_value",
+          "composite_score",
+          "decision",
+          "risk_tier",
+          "matched_rules",
+          "reason",
+          "executed",
+          "action_status",
+          "integration_status"
+        ],
+        "title": "InterventionView",
+        "type": "object"
+      },
+      "InvestigationResponse": {
+        "properties": {
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceItemView"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "hypotheses": {
+            "items": {
+              "$ref": "#/components/schemas/HypothesisView"
+            },
+            "title": "Hypotheses",
+            "type": "array"
+          },
+          "impact": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ImpactView"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "incident_ref": {
+            "title": "Incident Ref",
+            "type": "string"
+          }
+        },
+        "required": [
+          "incident_ref",
+          "evidence",
+          "hypotheses",
+          "impact"
+        ],
+        "title": "InvestigationResponse",
+        "type": "object"
+      },
+      "OpportunityStage": {
+        "enum": [
+          "discovery",
+          "proposal",
+          "negotiation",
+          "closed_won",
+          "closed_lost"
+        ],
+        "title": "OpportunityStage",
+        "type": "string"
+      },
+      "OpportunitySummary": {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Amount",
+            "type": "string"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "expected_close_date": {
+            "title": "Expected Close Date",
+            "type": "string"
+          },
+          "is_simulated": {
+            "title": "Is Simulated",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "opportunity_ref": {
+            "title": "Opportunity Ref",
+            "type": "string"
+          },
+          "probability": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Probability",
+            "type": "string"
+          },
+          "stage": {
+            "$ref": "#/components/schemas/OpportunityStage"
+          }
+        },
+        "required": [
+          "opportunity_ref",
+          "name",
+          "stage",
+          "amount",
+          "currency",
+          "probability",
+          "expected_close_date",
+          "is_simulated"
+        ],
+        "title": "OpportunitySummary",
+        "type": "object"
+      },
+      "OverviewResponse": {
+        "properties": {
+          "incidents_by_status": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Incidents By Status",
+            "type": "object"
+          },
+          "integration_status": {
+            "title": "Integration Status",
+            "type": "string"
+          },
+          "open_incidents": {
+            "title": "Open Incidents",
+            "type": "integer"
+          },
+          "total_at_risk": {
+            "title": "Total At Risk",
+            "type": "string"
+          },
+          "total_weighted": {
+            "title": "Total Weighted",
+            "type": "string"
+          }
+        },
+        "required": [
+          "total_at_risk",
+          "total_weighted",
+          "open_incidents",
+          "incidents_by_status",
+          "integration_status"
+        ],
+        "title": "OverviewResponse",
+        "type": "object"
+      },
+      "Severity": {
+        "enum": [
+          "low",
+          "medium",
+          "high",
+          "critical"
+        ],
+        "title": "Severity",
+        "type": "string"
+      },
+      "SignalSummary": {
+        "additionalProperties": false,
+        "description": "The signal that produced an incident.",
+        "properties": {
+          "dedupe_key": {
+            "title": "Dedupe Key",
+            "type": "string"
+          },
+          "detected_at": {
+            "format": "date-time",
+            "title": "Detected At",
+            "type": "string"
+          },
+          "detector_version": {
+            "title": "Detector Version",
+            "type": "string"
+          },
+          "evidence_event_count": {
+            "title": "Evidence Event Count",
+            "type": "integer"
+          },
+          "severity": {
+            "$ref": "#/components/schemas/Severity"
+          },
+          "signal_type": {
+            "$ref": "#/components/schemas/SignalType"
+          }
+        },
+        "required": [
+          "signal_type",
+          "detector_version",
+          "severity",
+          "detected_at",
+          "dedupe_key",
+          "evidence_event_count"
+        ],
+        "title": "SignalSummary",
+        "type": "object"
+      },
+      "SignalType": {
+        "description": "Only `STALLED_OPPORTUNITY` has a detector in v1; the rest are ROADMAP\nregistry entries with declared parameters and no implementation.",
+        "enum": [
+          "stalled_opportunity",
+          "renewal_risk",
+          "deal_slippage",
+          "pqa_discovery",
+          "account_expansion",
+          "crm_data_quality",
+          "enrichment_cost_anomaly",
+          "campaign_underperformance"
+        ],
+        "title": "SignalType",
+        "type": "string"
+      },
+      "TimelineEventView": {
+        "properties": {
+          "amount_usd": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount Usd"
+          },
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "event_type": {
+            "title": "Event Type",
+            "type": "string"
+          },
+          "integration_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Integration Status"
+          },
+          "occurred_at": {
+            "format": "date-time",
+            "title": "Occurred At",
+            "type": "string"
+          },
+          "parent_span_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Span Id"
+          },
+          "pricing_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pricing Version"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "span_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Span Id"
+          },
+          "trace_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trace Id"
+          }
+        },
+        "required": [
+          "occurred_at",
+          "source",
+          "event_type",
+          "detail",
+          "trace_id",
+          "span_id",
+          "parent_span_id",
+          "amount_usd",
+          "pricing_version",
+          "integration_status"
+        ],
+        "title": "TimelineEventView",
+        "type": "object"
+      },
+      "TimelineResponse": {
+        "properties": {
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/TimelineEventView"
+            },
+            "title": "Events",
+            "type": "array"
+          },
+          "incident_ref": {
+            "title": "Incident Ref",
+            "type": "string"
+          },
+          "trace_count": {
+            "title": "Trace Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "incident_ref",
+          "trace_count",
+          "events"
+        ],
+        "title": "TimelineResponse",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "Agentic AI GTM Control Tower. Every external integration is SIMULATED in v1 -- see CAPABILITY_MATRIX.md.",
+    "title": "Revenue Sentinel",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/approvals": {
+      "get": {
+        "description": "The inbox. **Read-only** -- it renders the command, it does not run it.\n\nThere is no authentication in this system, so a browser button would imply a session\nand an accountable user that do not exist (ADR-0018, ADR-0022).",
+        "operationId": "approvals_approvals_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApprovalInboxResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Approvals",
+        "tags": [
+          "dashboard"
+        ]
+      }
+    },
+    "/evaluation/latest": {
+      "get": {
+        "description": "The most recent evaluation attempt. History is append-only, so this is a view of\none attempt rather than a mutable status.",
+        "operationId": "evaluation_evaluation_latest_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvaluationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          }
+        },
+        "summary": "Evaluation",
+        "tags": [
+          "dashboard"
+        ]
+      }
+    },
+    "/health": {
+      "get": {
+        "description": "Report process health and whether PostgreSQL answers.\n\nReturns 503 when the database is unreachable so an orchestrator can act on the\nstatus code rather than having to parse the body.",
+        "operationId": "get_health_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            },
+            "description": "A dependency is unreachable"
+          }
+        },
+        "summary": "Liveness and dependency reachability",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/incidents": {
+      "get": {
+        "description": "The incident queue.\n\nOrdered by `opened_at` descending then `incident_ref`, so the ordering is total\neven when several incidents share an instant -- which they do, because the\nevaluation timestamp is frozen.",
+        "operationId": "list_incidents_incidents_get",
+        "parameters": [
+          {
+            "description": "Filter by lifecycle status",
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/IncidentStatus"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by lifecycle status",
+              "title": "Status"
+            }
+          },
+          {
+            "description": "Filter by severity",
+            "in": "query",
+            "name": "severity",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/Severity"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by severity",
+              "title": "Severity"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IncidentListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List incidents, newest first",
+        "tags": [
+          "incidents"
+        ]
+      }
+    },
+    "/incidents/{incident_ref}": {
+      "get": {
+        "description": "Fetch an incident by its business reference, e.g. `INC-001`.",
+        "operationId": "get_incident_incidents__incident_ref__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "incident_ref",
+            "required": true,
+            "schema": {
+              "title": "Incident Ref",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IncidentDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "No such incident"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "One incident, with the signal that produced it",
+        "tags": [
+          "incidents"
+        ]
+      }
+    },
+    "/incidents/{incident_ref}/cost": {
+      "get": {
+        "description": "Microdollar precision throughout -- `$0.000000` is not rounded to `$0.00`.",
+        "operationId": "cost_incidents__incident_ref__cost_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "incident_ref",
+            "required": true,
+            "schema": {
+              "title": "Incident Ref",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CostSummaryResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cost",
+        "tags": [
+          "dashboard"
+        ]
+      }
+    },
+    "/incidents/{incident_ref}/interventions": {
+      "get": {
+        "description": "Ranked interventions with the decision and the rules behind it.",
+        "operationId": "interventions_incidents__incident_ref__interventions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "incident_ref",
+            "required": true,
+            "schema": {
+              "title": "Incident Ref",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/InterventionView"
+                  },
+                  "title": "Response Interventions Incidents  Incident Ref  Interventions Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Interventions",
+        "tags": [
+          "dashboard"
+        ]
+      }
+    },
+    "/incidents/{incident_ref}/investigation": {
+      "get": {
+        "description": "Evidence, hypotheses and the deterministic impact figures.",
+        "operationId": "investigation_incidents__incident_ref__investigation_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "incident_ref",
+            "required": true,
+            "schema": {
+              "title": "Incident Ref",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvestigationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Investigation",
+        "tags": [
+          "dashboard"
+        ]
+      }
+    },
+    "/incidents/{incident_ref}/timeline": {
+      "get": {
+        "description": "The trace-correlated merge. Absent tracing metadata stays absent.",
+        "operationId": "timeline_incidents__incident_ref__timeline_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "incident_ref",
+            "required": true,
+            "schema": {
+              "title": "Incident Ref",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TimelineResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Timeline",
+        "tags": [
+          "dashboard"
+        ]
+      }
+    },
+    "/ingest": {
+      "post": {
+        "description": "Ingest, normalize, detect, and open incidents.\n\nThe evaluation instant is taken from configuration, never from the clock, so\ntwo calls in the same deployment evaluate against the same reference time and\nthe demo stays reproducible.",
+        "operationId": "post_ingest_ingest_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Run one ingestion cycle over the SIMULATED source feed",
+        "tags": [
+          "ingestion"
+        ]
+      }
+    },
+    "/overview": {
+      "get": {
+        "description": "What is at risk, in dollars, right now.",
+        "operationId": "overview_overview_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OverviewResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Overview",
+        "tags": [
+          "dashboard"
+        ]
+      }
+    }
+  }
+}

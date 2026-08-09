@@ -6,14 +6,16 @@ __pycache__/
 *$py.class
 *.so
 .Python
-build/
+/build/
 develop-eggs/
-dist/
+/dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+# Anchored to the repository root: these are Python build artefacts, and an
+# unanchored `lib/` also swallowed `apps/web/lib`, the frontend's client layer.
+/lib/
+/lib64/
 parts/
 sdist/
 var/
