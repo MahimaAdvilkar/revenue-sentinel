@@ -1,0 +1,81 @@
+/**
+ * The generated OpenAPI contract (ADR-0023).
+ *
+ * These assertions are about the *schema the frontend was built against*, not about a
+ * running server. If the backend adds an approval mutation, regenerating produces a
+ * schema that fails here -- so the read-only boundary is enforced on both sides of the
+ * wire rather than only in pytest.
+ */
+import { describe, expect, it } from "vitest";
+import schema from "@/generated/openapi.json";
+
+const paths = schema.paths as Record<string, Record<string, unknown>>;
+
+describe("generated OpenAPI contract", () => {
+  it("exposes no approval mutation route", () => {
+    // ADR-0018 + ADR-0022. The CLI is the only mutation surface.
+    const approvalMutations = Object.entries(paths).flatMap(([path, ops]) =>
+      Object.keys(ops)
+        .filter((method) => ["post", "put", "patch", "delete"].includes(method))
+        .filter(() => path.includes("approval"))
+        .map((method) => `${method.toUpperCase()} ${path}`),
+    );
+    expect(approvalMutations).toEqual([]);
+  });
+
+  it("exposes no mutation route at all outside ingestion", () => {
+    const mutations = Object.entries(paths).flatMap(([path, ops]) =>
+      Object.keys(ops)
+        .filter((method) => ["post", "put", "patch", "delete"].includes(method))
+        .filter(() => path !== "/ingest")
+        .map((method) => `${method.toUpperCase()} ${path}`),
+    );
+    expect(mutations).toEqual([]);
+  });
+
+  it("publishes every endpoint the client layer calls", () => {
+    // A typo or a removed endpoint becomes a failing test rather than a 404 in the UI.
+    for (const path of [
+      "/overview",
+      "/incidents",
+      "/incidents/{incident_ref}",
+      "/incidents/{incident_ref}/investigation",
+      "/incidents/{incident_ref}/interventions",
+      "/incidents/{incident_ref}/timeline",
+      "/incidents/{incident_ref}/cost",
+      "/approvals",
+    ]) {
+      expect(paths[path], `${path} missing from the schema`).toBeDefined();
+      expect(paths[path]?.get, `${path} should be a GET`).toBeDefined();
+    }
+  });
+
+  it("serialises money and cost as strings, not numbers", () => {
+    // A JSON number is an IEEE float and cannot carry a Decimal. This is the schema-level
+    // guarantee behind the six-decimal formatter.
+    const components = schema.components as {
+      schemas: Record<string, { properties?: Record<string, { type?: string }> }>;
+    };
+    const cost = components.schemas.CostSummaryResponse?.properties;
+    expect(cost?.total_cost?.type).toBe("string");
+    expect(cost?.model_cost?.type).toBe("string");
+
+    const impact = components.schemas.ImpactView?.properties;
+    expect(impact?.at_risk_value?.type).toBe("string");
+  });
+
+  it("declares tracing identifiers as nullable rather than required", () => {
+    // Absent metadata must be representable, or the API would have to invent it.
+    const components = schema.components as {
+      schemas: Record<string, { required?: string[] }>;
+    };
+    const required = components.schemas.TimelineEventView?.required ?? [];
+    // They are present-but-nullable: the field always appears, its value may be null.
+    expect(required).toContain("trace_id");
+    const event = (components.schemas.TimelineEventView as unknown as {
+      properties: Record<string, { anyOf?: { type?: string }[] }>;
+    }).properties;
+    const traceTypes = event.trace_id?.anyOf?.map((entry) => entry.type) ?? [];
+    expect(traceTypes).toContain("null");
+  });
+});
