@@ -340,3 +340,30 @@ class CostCentreResponse(BaseModel):
     model_mix: list[ModelMixEntry]
     cache_effectiveness: ObservedMetric
     concurrency_note: str
+
+
+class EvaluationRunSummary(BaseModel):
+    evaluation_run_id: str
+    sequence: int
+    """Insertion order. History is sorted by this descending, so the ordering is total and
+    reproducible even when several attempts share a frozen `started_at`."""
+
+    suite_name: str
+    evaluator_version: str
+    started_at: datetime
+    passed: int
+    total: int
+    outcome: str
+
+
+class EvaluationHistoryResponse(BaseModel):
+    """Append-only history.
+
+    A list rather than a current status, because ADR-0021 made evaluation attempts
+    append-only precisely so a later pass cannot erase the evidence of an earlier
+    failure. A response that returned only the latest would undo that at the API.
+    """
+
+    runs: list[EvaluationRunSummary]
+    llm_judge_used: bool
+    evaluation_cost: str

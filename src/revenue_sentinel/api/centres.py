@@ -1,13 +1,16 @@
-"""The cost centre.
+"""The cost centre and the evaluation history.
 
 All read-only, like everything else the dashboard consumes (ADR-0022).
 
-One claim here the code has to be careful about:
+Two of these carry a claim the code has to be careful about:
 
 * **Cache effectiveness has never been measured.** The counters exist and are all zero,
   because no live API call has ever been made. Returning `0%` would read as "caching
   works badly"; this returns `observed: false` with a sentence saying why, and the UI
   renders that rather than a number.
+* **Evaluation history is a list, not a status.** ADR-0021 made attempts append-only so a
+  later pass cannot erase evidence of an earlier failure. An endpoint that returned only
+  the latest result would undo that at the API layer, so this returns every attempt.
 """
 
 from __future__ import annotations
@@ -23,11 +26,14 @@ from revenue_sentinel.api.deps import get_session
 from revenue_sentinel.api.schemas import (
     BudgetView,
     CostCentreResponse,
+    EvaluationHistoryResponse,
+    EvaluationRunSummary,
     IncidentCostView,
     ModelMixEntry,
     ObservedMetric,
 )
 from revenue_sentinel.cost.pricing import cost_of
+from revenue_sentinel.db.models import evaluation as eval_orm
 from revenue_sentinel.db.models import observability as obs_orm
 from revenue_sentinel.db.models import workflow as workflow_orm
 from revenue_sentinel.domain.enums import CostType
@@ -209,4 +215,41 @@ def _cache_effectiveness(session: Session) -> ObservedMetric:
         observed=True,
         value=f"{rate}%",
         note=f"{reads} cached input tokens read, {writes} written.",
+    )
+
+
+@router.get("/evaluation/runs", response_model=EvaluationHistoryResponse)
+def evaluation_history(
+    session: Annotated[Session, Depends(get_session)],
+) -> EvaluationHistoryResponse:
+    """Every evaluation attempt, most recently recorded first.
+
+    **A failed attempt stays in this list**, and the list is never collapsed to a status.
+
+    Ordered by `seq` -- the insertion sequence added in migration 0008 -- not by
+    `started_at`. In fixture mode `started_at` is the frozen `EVALUATION_TIMESTAMP`, so
+    every attempt of the golden run carries the same value and ordering by it is
+    arbitrary between ties. `seq` is monotonic per insert, so this ordering is total and
+    reproducible.
+    """
+    runs = session.scalars(
+        sa.select(eval_orm.EvaluationRun).order_by(eval_orm.EvaluationRun.seq.desc())
+    ).all()
+
+    return EvaluationHistoryResponse(
+        runs=[
+            EvaluationRunSummary(
+                evaluation_run_id=str(run.id),
+                sequence=run.seq,
+                suite_name=run.suite_name,
+                evaluator_version=run.suite_version,
+                started_at=run.started_at,
+                passed=run.passed,
+                total=run.total,
+                outcome="passed" if run.passed == run.total else "failed",
+            )
+            for run in runs
+        ],
+        llm_judge_used=False,
+        evaluation_cost="0.000000",
     )

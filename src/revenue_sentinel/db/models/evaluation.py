@@ -22,6 +22,13 @@ class EvaluationRun(Base, CreatedAtMixin):
     __tablename__ = "evaluation_runs"
 
     id: Mapped[uuid_pk]
+    seq: Mapped[int] = mapped_column(sa.BigInteger, sa.Identity(always=True), unique=True)
+    """Insertion order, and the only total order this table has.
+
+    `started_at` is caller-supplied and frozen in fixture mode; `created_at` defaults to
+    `now()`, which is the *transaction* timestamp. Both tie. History is ordered by this
+    (migration 0008)."""
+
     suite_name: Mapped[short_text]
     suite_version: Mapped[str] = mapped_column(sa.String(32))
     started_at: Mapped[timestamp_tz]
