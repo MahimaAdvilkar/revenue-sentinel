@@ -27,6 +27,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/cost": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cost Centre
+         * @description Spend across every run, against every configured budget.
+         */
+        get: operations["cost_centre_cost_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/evaluation/latest": {
         parameters: {
             query?: never;
@@ -40,6 +60,34 @@ export interface paths {
          *     one attempt rather than a mutable status.
          */
         get: operations["evaluation_evaluation_latest_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/evaluation/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Evaluation History
+         * @description Every evaluation attempt, most recently recorded first.
+         *
+         *     **A failed attempt stays in this list**, and the list is never collapsed to a status.
+         *
+         *     Ordered by `seq` -- the insertion sequence added in migration 0008 -- not by
+         *     `started_at`. In fixture mode `started_at` is the frozen `EVALUATION_TIMESTAMP`, so
+         *     every attempt of the golden run carries the same value and ordering by it is
+         *     arbitrary between ties. `seq` is monotonic per insert, so this ordering is total and
+         *     reproducible.
+         */
+        get: operations["evaluation_history_evaluation_runs_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -219,6 +267,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/integrations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Integration Catalogue
+         * @description Every adapter, the status it declares, and the roadmap copy it wrote itself.
+         *
+         *     Both come out of the adapter module (`integrations/catalogue.py`): the status through
+         *     `status_of`, the same function the MCP server uses to stamp tool results, and the
+         *     "what changes when this becomes real" text out of the module docstring. Nothing on
+         *     this endpoint is written here. A catalogue that could disagree with the adapters would
+         *     be worse than no catalogue.
+         */
+        get: operations["integration_catalogue_integrations_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/overview": {
         parameters: {
             query?: never;
@@ -281,6 +355,45 @@ export interface components {
             /** Pending */
             pending: components["schemas"]["ApprovalInboxItem"][];
         };
+        /** BudgetView */
+        BudgetView: {
+            /** Consumed Usd */
+            consumed_usd: string;
+            /** Hard Stop */
+            hard_stop: boolean;
+            /** Limit Usd */
+            limit_usd: string;
+            /** Remaining Usd */
+            remaining_usd: string;
+            /** Scope */
+            scope: string;
+            /** Scope Ref */
+            scope_ref: string | null;
+        };
+        /** CostCentreResponse */
+        CostCentreResponse: {
+            /** Budgets */
+            budgets: components["schemas"]["BudgetView"][];
+            /** By Incident */
+            by_incident: components["schemas"]["IncidentCostView"][];
+            cache_effectiveness: components["schemas"]["ObservedMetric"];
+            /** Concurrency Note */
+            concurrency_note: string;
+            /** Model Calls */
+            model_calls: number;
+            /** Model Cost */
+            model_cost: string;
+            /** Model Mix */
+            model_mix: components["schemas"]["ModelMixEntry"][];
+            /** Pricing Versions */
+            pricing_versions: string[];
+            /** Tool Calls */
+            tool_calls: number;
+            /** Tool Cost */
+            tool_cost: string;
+            /** Total Cost */
+            total_cost: string;
+        };
         /** CostLedgerEntry */
         CostLedgerEntry: {
             /** Amount Usd */
@@ -322,6 +435,22 @@ export interface components {
             /** Resource */
             resource?: string | null;
         };
+        /**
+         * EvaluationHistoryResponse
+         * @description Append-only history.
+         *
+         *     A list rather than a current status, because ADR-0021 made evaluation attempts
+         *     append-only precisely so a later pass cannot erase the evidence of an earlier
+         *     failure. A response that returned only the latest would undo that at the API.
+         */
+        EvaluationHistoryResponse: {
+            /** Evaluation Cost */
+            evaluation_cost: string;
+            /** Llm Judge Used */
+            llm_judge_used: boolean;
+            /** Runs */
+            runs: components["schemas"]["EvaluationRunSummary"][];
+        };
         /** EvaluationResponse */
         EvaluationResponse: {
             /** Evaluation Cost */
@@ -351,6 +480,28 @@ export interface components {
             expected: string;
             /** Outcome */
             outcome: string;
+        };
+        /** EvaluationRunSummary */
+        EvaluationRunSummary: {
+            /** Evaluation Run Id */
+            evaluation_run_id: string;
+            /** Evaluator Version */
+            evaluator_version: string;
+            /** Outcome */
+            outcome: string;
+            /** Passed */
+            passed: number;
+            /** Sequence */
+            sequence: number;
+            /**
+             * Started At
+             * Format: date-time
+             */
+            started_at: string;
+            /** Suite Name */
+            suite_name: string;
+            /** Total */
+            total: number;
         };
         /** EvidenceItemView */
         EvidenceItemView: {
@@ -423,6 +574,21 @@ export interface components {
             pipeline_value: string;
             /** Weighted Value */
             weighted_value: string;
+        };
+        /** IncidentCostView */
+        IncidentCostView: {
+            /** Incident Ref */
+            incident_ref: string;
+            /** Model Calls */
+            model_calls: number;
+            /** Model Cost */
+            model_cost: string;
+            /** Tool Calls */
+            tool_calls: number;
+            /** Tool Cost */
+            tool_cost: string;
+            /** Total Cost */
+            total_cost: string;
         };
         /**
          * IncidentDetail
@@ -537,6 +703,30 @@ export interface components {
             /** Signals Deduplicated */
             signals_deduplicated: number;
         };
+        /** IntegrationCatalogueResponse */
+        IntegrationCatalogueResponse: {
+            /** Any Real */
+            any_real: boolean;
+            /** Integrations */
+            integrations: components["schemas"]["IntegrationView"][];
+        };
+        /** IntegrationView */
+        IntegrationView: {
+            /** Integration Status */
+            integration_status: string;
+            /** Module */
+            module: string;
+            /** Name */
+            name: string;
+            /** Port */
+            port: string;
+            /** Summary */
+            summary: string;
+            /** When Real */
+            when_real: components["schemas"]["RoadmapNoteView"][];
+            /** When Real Documented */
+            when_real_documented: boolean;
+        };
         /** InterventionView */
         InterventionView: {
             /** Action Status */
@@ -578,6 +768,34 @@ export interface components {
             /** Incident Ref */
             incident_ref: string;
         };
+        /** ModelMixEntry */
+        ModelMixEntry: {
+            /** Calls */
+            calls: number;
+            /** Cost Usd */
+            cost_usd: string;
+            /** Model Id */
+            model_id: string;
+            /** Replayed */
+            replayed: number;
+        };
+        /**
+         * ObservedMetric
+         * @description A figure that may never have been measured.
+         *
+         *     `observed=False` means **no data exists**, not that the value is zero. Cache hit rate
+         *     is the case this exists for: no live API call has ever been made, so the cache
+         *     counters are all zero -- and rendering `0%` would read as "caching works badly"
+         *     rather than "caching has never run". The distinction is the whole point.
+         */
+        ObservedMetric: {
+            /** Note */
+            note: string;
+            /** Observed */
+            observed: boolean;
+            /** Value */
+            value: string | null;
+        };
         /**
          * OpportunityStage
          * @enum {string}
@@ -615,6 +833,16 @@ export interface components {
             total_at_risk: string;
             /** Total Weighted */
             total_weighted: string;
+        };
+        /**
+         * RoadmapNoteView
+         * @description One headed paragraph of an adapter's "what changes when this becomes real".
+         */
+        RoadmapNoteView: {
+            /** Body */
+            body: string;
+            /** Heading */
+            heading: string;
         };
         /**
          * Severity
@@ -724,6 +952,26 @@ export interface operations {
             };
         };
     };
+    cost_centre_cost_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CostCentreResponse"];
+                };
+            };
+        };
+    };
     evaluation_evaluation_latest_get: {
         parameters: {
             query?: never;
@@ -749,6 +997,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    evaluation_history_evaluation_runs_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvaluationHistoryResponse"];
                 };
             };
         };
@@ -1033,6 +1301,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["IngestResponse"];
+                };
+            };
+        };
+    };
+    integration_catalogue_integrations_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntegrationCatalogueResponse"];
                 };
             };
         };

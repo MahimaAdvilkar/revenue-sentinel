@@ -34,6 +34,14 @@ export type CostLedgerEntry = Schemas["CostLedgerEntry"];
 export type ApprovalInbox = Schemas["ApprovalInboxResponse"];
 export type ApprovalItem = Schemas["ApprovalInboxItem"];
 
+// Session 10 centres.
+export type CostCentre = Schemas["CostCentreResponse"];
+export type BudgetView = Schemas["BudgetView"];
+export type ModelMixEntry = Schemas["ModelMixEntry"];
+export type ObservedMetric = Schemas["ObservedMetric"];
+export type EvaluationHistory = Schemas["EvaluationHistoryResponse"];
+export type IntegrationCatalogue = Schemas["IntegrationCatalogueResponse"];
+
 /**
  * Every read path the dashboard uses, checked against the generated schema.
  *
@@ -83,6 +91,10 @@ export const api = {
   timeline: (ref: string) => get<Timeline>(`/incidents/${ref}/timeline`),
   cost: (ref: string) => get<CostSummary>(`/incidents/${ref}/cost`),
   approvals: () => get<ApprovalInbox>("/approvals"),
+  evaluation: () => get<Schemas["EvaluationResponse"]>("/evaluation/latest"),
+  costCentre: () => get<CostCentre>("/cost"),
+  evaluationHistory: () => get<EvaluationHistory>("/evaluation/runs"),
+  integrations: () => get<IntegrationCatalogue>("/integrations"),
 };
 
 /**

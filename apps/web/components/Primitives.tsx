@@ -38,7 +38,26 @@ export function Nav() {
       <Link href="/">Overview</Link>
       <Link href="/incidents">Incidents</Link>
       <Link href="/approvals">Approvals</Link>
+      <Link href="/cost">Cost</Link>
+      <Link href="/evaluation">Evaluation</Link>
+      <Link href="/integrations">Integrations</Link>
     </nav>
+  );
+}
+
+/**
+ * A figure that has never been measured.
+ *
+ * `observed: false` means no data exists, not that the value is zero -- and the two must
+ * not look the same on a screen. Rendering a cache hit rate of `0%` would read as
+ * "caching works badly" rather than "caching has never run".
+ */
+export function NeverObserved({ note }: { note: string }) {
+  return (
+    <div className="never-observed" data-testid="never-observed">
+      <strong>never observed</strong>
+      <div className="hint">{note}</div>
+    </div>
   );
 }
 

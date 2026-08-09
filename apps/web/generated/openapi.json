@@ -95,6 +95,125 @@
         "title": "ApprovalInboxResponse",
         "type": "object"
       },
+      "BudgetView": {
+        "properties": {
+          "consumed_usd": {
+            "title": "Consumed Usd",
+            "type": "string"
+          },
+          "hard_stop": {
+            "title": "Hard Stop",
+            "type": "boolean"
+          },
+          "limit_usd": {
+            "title": "Limit Usd",
+            "type": "string"
+          },
+          "remaining_usd": {
+            "title": "Remaining Usd",
+            "type": "string"
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          },
+          "scope_ref": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scope Ref"
+          }
+        },
+        "required": [
+          "scope",
+          "scope_ref",
+          "limit_usd",
+          "consumed_usd",
+          "remaining_usd",
+          "hard_stop"
+        ],
+        "title": "BudgetView",
+        "type": "object"
+      },
+      "CostCentreResponse": {
+        "properties": {
+          "budgets": {
+            "items": {
+              "$ref": "#/components/schemas/BudgetView"
+            },
+            "title": "Budgets",
+            "type": "array"
+          },
+          "by_incident": {
+            "items": {
+              "$ref": "#/components/schemas/IncidentCostView"
+            },
+            "title": "By Incident",
+            "type": "array"
+          },
+          "cache_effectiveness": {
+            "$ref": "#/components/schemas/ObservedMetric"
+          },
+          "concurrency_note": {
+            "title": "Concurrency Note",
+            "type": "string"
+          },
+          "model_calls": {
+            "title": "Model Calls",
+            "type": "integer"
+          },
+          "model_cost": {
+            "title": "Model Cost",
+            "type": "string"
+          },
+          "model_mix": {
+            "items": {
+              "$ref": "#/components/schemas/ModelMixEntry"
+            },
+            "title": "Model Mix",
+            "type": "array"
+          },
+          "pricing_versions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Pricing Versions",
+            "type": "array"
+          },
+          "tool_calls": {
+            "title": "Tool Calls",
+            "type": "integer"
+          },
+          "tool_cost": {
+            "title": "Tool Cost",
+            "type": "string"
+          },
+          "total_cost": {
+            "title": "Total Cost",
+            "type": "string"
+          }
+        },
+        "required": [
+          "total_cost",
+          "model_cost",
+          "tool_cost",
+          "model_calls",
+          "tool_calls",
+          "pricing_versions",
+          "budgets",
+          "by_incident",
+          "model_mix",
+          "cache_effectiveness",
+          "concurrency_note"
+        ],
+        "title": "CostCentreResponse",
+        "type": "object"
+      },
       "CostLedgerEntry": {
         "properties": {
           "amount_usd": {
@@ -218,6 +337,33 @@
         "title": "ErrorResponse",
         "type": "object"
       },
+      "EvaluationHistoryResponse": {
+        "description": "Append-only history.\n\nA list rather than a current status, because ADR-0021 made evaluation attempts\nappend-only precisely so a later pass cannot erase the evidence of an earlier\nfailure. A response that returned only the latest would undo that at the API.",
+        "properties": {
+          "evaluation_cost": {
+            "title": "Evaluation Cost",
+            "type": "string"
+          },
+          "llm_judge_used": {
+            "title": "Llm Judge Used",
+            "type": "boolean"
+          },
+          "runs": {
+            "items": {
+              "$ref": "#/components/schemas/EvaluationRunSummary"
+            },
+            "title": "Runs",
+            "type": "array"
+          }
+        },
+        "required": [
+          "runs",
+          "llm_judge_used",
+          "evaluation_cost"
+        ],
+        "title": "EvaluationHistoryResponse",
+        "type": "object"
+      },
       "EvaluationResponse": {
         "properties": {
           "evaluation_cost": {
@@ -302,6 +448,55 @@
           "detail"
         ],
         "title": "EvaluationResultItem",
+        "type": "object"
+      },
+      "EvaluationRunSummary": {
+        "properties": {
+          "evaluation_run_id": {
+            "title": "Evaluation Run Id",
+            "type": "string"
+          },
+          "evaluator_version": {
+            "title": "Evaluator Version",
+            "type": "string"
+          },
+          "outcome": {
+            "title": "Outcome",
+            "type": "string"
+          },
+          "passed": {
+            "title": "Passed",
+            "type": "integer"
+          },
+          "sequence": {
+            "title": "Sequence",
+            "type": "integer"
+          },
+          "started_at": {
+            "format": "date-time",
+            "title": "Started At",
+            "type": "string"
+          },
+          "suite_name": {
+            "title": "Suite Name",
+            "type": "string"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "evaluation_run_id",
+          "sequence",
+          "suite_name",
+          "evaluator_version",
+          "started_at",
+          "passed",
+          "total",
+          "outcome"
+        ],
+        "title": "EvaluationRunSummary",
         "type": "object"
       },
       "EvidenceItemView": {
@@ -471,6 +666,44 @@
           "method_version"
         ],
         "title": "ImpactView",
+        "type": "object"
+      },
+      "IncidentCostView": {
+        "properties": {
+          "incident_ref": {
+            "title": "Incident Ref",
+            "type": "string"
+          },
+          "model_calls": {
+            "title": "Model Calls",
+            "type": "integer"
+          },
+          "model_cost": {
+            "title": "Model Cost",
+            "type": "string"
+          },
+          "tool_calls": {
+            "title": "Tool Calls",
+            "type": "integer"
+          },
+          "tool_cost": {
+            "title": "Tool Cost",
+            "type": "string"
+          },
+          "total_cost": {
+            "title": "Total Cost",
+            "type": "string"
+          }
+        },
+        "required": [
+          "incident_ref",
+          "model_cost",
+          "tool_cost",
+          "total_cost",
+          "model_calls",
+          "tool_calls"
+        ],
+        "title": "IncidentCostView",
         "type": "object"
       },
       "IncidentDetail": {
@@ -777,6 +1010,73 @@
         "title": "IngestResponse",
         "type": "object"
       },
+      "IntegrationCatalogueResponse": {
+        "properties": {
+          "any_real": {
+            "title": "Any Real",
+            "type": "boolean"
+          },
+          "integrations": {
+            "items": {
+              "$ref": "#/components/schemas/IntegrationView"
+            },
+            "title": "Integrations",
+            "type": "array"
+          }
+        },
+        "required": [
+          "integrations",
+          "any_real"
+        ],
+        "title": "IntegrationCatalogueResponse",
+        "type": "object"
+      },
+      "IntegrationView": {
+        "properties": {
+          "integration_status": {
+            "title": "Integration Status",
+            "type": "string"
+          },
+          "module": {
+            "title": "Module",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "port": {
+            "title": "Port",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "when_real": {
+            "items": {
+              "$ref": "#/components/schemas/RoadmapNoteView"
+            },
+            "title": "When Real",
+            "type": "array"
+          },
+          "when_real_documented": {
+            "title": "When Real Documented",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "module",
+          "integration_status",
+          "port",
+          "summary",
+          "when_real",
+          "when_real_documented"
+        ],
+        "title": "IntegrationView",
+        "type": "object"
+      },
       "InterventionView": {
         "properties": {
           "action_status": {
@@ -926,6 +1226,65 @@
         "title": "InvestigationResponse",
         "type": "object"
       },
+      "ModelMixEntry": {
+        "properties": {
+          "calls": {
+            "title": "Calls",
+            "type": "integer"
+          },
+          "cost_usd": {
+            "title": "Cost Usd",
+            "type": "string"
+          },
+          "model_id": {
+            "title": "Model Id",
+            "type": "string"
+          },
+          "replayed": {
+            "title": "Replayed",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "model_id",
+          "calls",
+          "cost_usd",
+          "replayed"
+        ],
+        "title": "ModelMixEntry",
+        "type": "object"
+      },
+      "ObservedMetric": {
+        "description": "A figure that may never have been measured.\n\n`observed=False` means **no data exists**, not that the value is zero. Cache hit rate\nis the case this exists for: no live API call has ever been made, so the cache\ncounters are all zero -- and rendering `0%` would read as \"caching works badly\"\nrather than \"caching has never run\". The distinction is the whole point.",
+        "properties": {
+          "note": {
+            "title": "Note",
+            "type": "string"
+          },
+          "observed": {
+            "title": "Observed",
+            "type": "boolean"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "observed",
+          "value",
+          "note"
+        ],
+        "title": "ObservedMetric",
+        "type": "object"
+      },
       "OpportunityStage": {
         "enum": [
           "discovery",
@@ -1021,6 +1380,25 @@
           "integration_status"
         ],
         "title": "OverviewResponse",
+        "type": "object"
+      },
+      "RoadmapNoteView": {
+        "description": "One headed paragraph of an adapter's \"what changes when this becomes real\".",
+        "properties": {
+          "body": {
+            "title": "Body",
+            "type": "string"
+          },
+          "heading": {
+            "title": "Heading",
+            "type": "string"
+          }
+        },
+        "required": [
+          "heading",
+          "body"
+        ],
+        "title": "RoadmapNoteView",
         "type": "object"
       },
       "Severity": {
@@ -1285,6 +1663,28 @@
         ]
       }
     },
+    "/cost": {
+      "get": {
+        "description": "Spend across every run, against every configured budget.",
+        "operationId": "cost_centre_cost_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CostCentreResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Cost Centre",
+        "tags": [
+          "centres"
+        ]
+      }
+    },
     "/evaluation/latest": {
       "get": {
         "description": "The most recent evaluation attempt. History is append-only, so this is a view of\none attempt rather than a mutable status.",
@@ -1314,6 +1714,28 @@
         "summary": "Evaluation",
         "tags": [
           "dashboard"
+        ]
+      }
+    },
+    "/evaluation/runs": {
+      "get": {
+        "description": "Every evaluation attempt, most recently recorded first.\n\n**A failed attempt stays in this list**, and the list is never collapsed to a status.\n\nOrdered by `seq` -- the insertion sequence added in migration 0008 -- not by\n`started_at`. In fixture mode `started_at` is the frozen `EVALUATION_TIMESTAMP`, so\nevery attempt of the golden run carries the same value and ordering by it is\narbitrary between ties. `seq` is monotonic per insert, so this ordering is total and\nreproducible.",
+        "operationId": "evaluation_history_evaluation_runs_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EvaluationHistoryResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Evaluation History",
+        "tags": [
+          "centres"
         ]
       }
     },
@@ -1719,6 +2141,28 @@
         "summary": "Run one ingestion cycle over the SIMULATED source feed",
         "tags": [
           "ingestion"
+        ]
+      }
+    },
+    "/integrations": {
+      "get": {
+        "description": "Every adapter, the status it declares, and the roadmap copy it wrote itself.\n\nBoth come out of the adapter module (`integrations/catalogue.py`): the status through\n`status_of`, the same function the MCP server uses to stamp tool results, and the\n\"what changes when this becomes real\" text out of the module docstring. Nothing on\nthis endpoint is written here. A catalogue that could disagree with the adapters would\nbe worse than no catalogue.",
+        "operationId": "integration_catalogue_integrations_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntegrationCatalogueResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Integration Catalogue",
+        "tags": [
+          "centres"
         ]
       }
     },

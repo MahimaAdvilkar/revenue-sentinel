@@ -58,6 +58,9 @@ code, .mono { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Conso
   padding: 0.05rem 0.4rem; font-size: 0.68rem; font-weight: 700;
   letter-spacing: 0.04em; margin-left: 0.35rem;
 }
+/* SIMULATED is the resting state and reads as an ordinary marker. IMPLEMENTED means a
+   real external system is bound, which on this dashboard is a warning, not a status. */
+.badge-implemented { background: #2a0f10; color: var(--deny); border-color: #7a2a2e; }
 .absent { color: var(--muted); font-style: italic; }
 .decision { text-transform: uppercase; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.04em; }
 .decision-allow { color: var(--ok); }
@@ -74,3 +77,17 @@ code, .mono { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Conso
 .error-note { background: #2a0f10; border: 1px solid #5a2023; border-radius: 8px; padding: 1rem; }
 .hint { color: var(--muted); font-size: 0.8rem; margin-top: 0.4rem; }
 .rules { color: var(--muted); font-size: 0.78rem; }
+
+.never-observed {
+  background: #1d2330; border: 1px dashed var(--line); border-radius: 6px;
+  padding: 0.7rem; color: var(--muted); font-size: 0.85rem;
+}
+.never-observed strong { color: var(--warn); text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.75rem; }
+.outcome-passed { color: var(--ok); font-weight: 700; }
+.outcome-failed { color: var(--deny); font-weight: 700; }
+
+.roadmap { margin: 0.4rem 0 0; }
+.roadmap > div { display: grid; grid-template-columns: 9rem 1fr; gap: 0.6rem; padding: 0.35rem 0; border-top: 1px solid var(--line); }
+.roadmap dt { color: var(--muted); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+.roadmap dd { margin: 0; font-size: 0.83rem; line-height: 1.5; color: var(--fg); }
+@media (max-width: 640px) { .roadmap > div { grid-template-columns: 1fr; gap: 0.15rem; } }

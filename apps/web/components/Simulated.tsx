@@ -57,7 +57,14 @@ export function SimulatedBadge({
   return (
     <>
       {labels.map((label) => (
-        <span key={label} className="badge" data-testid={`badge-${label.toLowerCase()}`}>
+        <span
+          key={label}
+          // A live integration is not a neutral tag on this dashboard -- it is the one
+          // thing a reader must not skim past. So the modifier class is derived from the
+          // label rather than fixed, and `badge-implemented` is styled as a warning.
+          className={`badge badge-${label.toLowerCase()}`}
+          data-testid={`badge-${label.toLowerCase()}`}
+        >
           {label}
         </span>
       ))}
