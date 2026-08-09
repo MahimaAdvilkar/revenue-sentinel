@@ -282,3 +282,61 @@ class OverviewResponse(BaseModel):
     open_incidents: int
     incidents_by_status: dict[str, int]
     integration_status: str
+
+
+# ---------------------------------------------------------------------------
+# Session 10 — cost centre, evaluation history, integration catalogue
+# ---------------------------------------------------------------------------
+class BudgetView(BaseModel):
+    scope: str
+    scope_ref: str | None
+    limit_usd: str
+    consumed_usd: str
+    remaining_usd: str
+    hard_stop: bool
+
+
+class IncidentCostView(BaseModel):
+    incident_ref: str
+    model_cost: str
+    tool_cost: str
+    total_cost: str
+    model_calls: int
+    tool_calls: int
+
+
+class ModelMixEntry(BaseModel):
+    model_id: str
+    calls: int
+    cost_usd: str
+    replayed: int
+    """How many of these calls were replayed from a fixture rather than generated. In
+    v1 this equals `calls`, which is why the mix is not a measurement."""
+
+
+class ObservedMetric(BaseModel):
+    """A figure that may never have been measured.
+
+    `observed=False` means **no data exists**, not that the value is zero. Cache hit rate
+    is the case this exists for: no live API call has ever been made, so the cache
+    counters are all zero -- and rendering `0%` would read as "caching works badly"
+    rather than "caching has never run". The distinction is the whole point.
+    """
+
+    observed: bool
+    value: str | None
+    note: str
+
+
+class CostCentreResponse(BaseModel):
+    total_cost: str
+    model_cost: str
+    tool_cost: str
+    model_calls: int
+    tool_calls: int
+    pricing_versions: list[str]
+    budgets: list[BudgetView]
+    by_incident: list[IncidentCostView]
+    model_mix: list[ModelMixEntry]
+    cache_effectiveness: ObservedMetric
+    concurrency_note: str

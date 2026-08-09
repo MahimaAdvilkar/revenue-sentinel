@@ -18,6 +18,7 @@ from typing import Final
 from fastapi import FastAPI
 from sqlalchemy import Engine
 
+from revenue_sentinel.api.centres import router as centres_router
 from revenue_sentinel.api.dashboard import router as dashboard_router
 from revenue_sentinel.api.health import router as health_router
 from revenue_sentinel.api.incidents import router as incidents_router
@@ -66,6 +67,7 @@ def create_app(*, settings: Settings | None = None, engine: Engine | None = None
     app.include_router(ingest_router)
     app.include_router(incidents_router)
     app.include_router(dashboard_router)
+    app.include_router(centres_router)
 
     logger.info(
         "application_configured",
