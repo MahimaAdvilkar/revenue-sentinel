@@ -1,0 +1,76 @@
+/*
+ * System fonts only. No CDN, no Google Fonts, no remote asset of any kind -- the
+ * dashboard must load with the network unplugged except for the local API.
+ */
+:root {
+  --bg: #0f1115;
+  --panel: #171a21;
+  --line: #262b36;
+  --text: #e6e9ef;
+  --muted: #99a1b3;
+  --accent: #6ea8fe;
+  --warn: #f0b429;
+  --deny: #e5484d;
+  --ok: #46a758;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    Helvetica, Arial, sans-serif;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); }
+main { padding: 1.5rem; max-width: 1200px; margin: 0 auto; }
+a { color: var(--accent); }
+
+.banner {
+  background: var(--warn); color: #241a00; padding: 0.6rem 1rem;
+  font-size: 0.85rem; line-height: 1.4;
+}
+.header {
+  display: flex; gap: 1.5rem; align-items: center;
+  padding: 0.9rem 1.5rem; border-bottom: 1px solid var(--line);
+}
+.brand { font-weight: 700; letter-spacing: 0.02em; }
+.nav { display: flex; gap: 1rem; }
+.footer {
+  padding: 1.5rem; color: var(--muted); font-size: 0.8rem;
+  border-top: 1px solid var(--line); margin-top: 2rem;
+}
+
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 1rem; }
+.stat { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 1rem; }
+.stat-label { color: var(--muted); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; }
+.stat-value { font-size: 1.6rem; font-weight: 650; margin-top: 0.35rem; font-variant-numeric: tabular-nums; }
+.stat-hint { color: var(--muted); font-size: 0.78rem; margin-top: 0.3rem; }
+
+.section { margin-top: 2rem; }
+.section h2 { font-size: 1.05rem; margin: 0 0 0.35rem; }
+.subtitle { color: var(--muted); font-size: 0.85rem; margin: 0 0 0.8rem; }
+
+table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+th, td { text-align: left; padding: 0.55rem 0.6rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--muted); font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+code, .mono { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; font-size: 0.85em; }
+
+.badge {
+  display: inline-block; background: #3a2f00; color: var(--warn);
+  border: 1px solid #5a4a00; border-radius: 4px;
+  padding: 0.05rem 0.4rem; font-size: 0.68rem; font-weight: 700;
+  letter-spacing: 0.04em; margin-left: 0.35rem;
+}
+.absent { color: var(--muted); font-style: italic; }
+.decision { text-transform: uppercase; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.04em; }
+.decision-allow { color: var(--ok); }
+.decision-require_approval { color: var(--warn); }
+.decision-deny { color: var(--deny); }
+
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 1rem; margin-bottom: 0.8rem; }
+.caveat { color: var(--warn); font-size: 0.8rem; margin-top: 0.5rem; line-height: 1.45; }
+.identity-note {
+  background: #2a1d00; border: 1px solid #5a4a00; border-radius: 6px;
+  padding: 0.8rem; color: var(--warn); font-size: 0.85rem; line-height: 1.5;
+}
+.cli { background: #05070a; border: 1px solid var(--line); border-radius: 6px; padding: 0.6rem 0.7rem; margin-top: 0.5rem; overflow-x: auto; }
+.error-note { background: #2a0f10; border: 1px solid #5a2023; border-radius: 8px; padding: 1rem; }
+.hint { color: var(--muted); font-size: 0.8rem; margin-top: 0.4rem; }
+.rules { color: var(--muted); font-size: 0.78rem; }
