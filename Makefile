@@ -116,8 +116,25 @@ api:  ## [S1] Run the FastAPI app on :8000
 	$(UV) run uvicorn revenue_sentinel.api.main:app --reload --port 8000
 
 .PHONY: web
-web:  ## [S9] Run the Next.js dashboard on :3000
-	cd apps/web && pnpm dev
+web:  ## Run the dashboard on :3000 (needs `make api` on :8000)
+	cd apps/web && NEXT_TELEMETRY_DISABLED=1 pnpm dev
+
+.PHONY: web-install
+web-install:  ## Install frontend dependencies from the lockfile
+	cd apps/web && pnpm install --frozen-lockfile
+
+.PHONY: web-build
+web-build:  ## Production build of the dashboard
+	cd apps/web && NEXT_TELEMETRY_DISABLED=1 pnpm build
+
+.PHONY: web-test
+web-test:  ## Frontend typecheck + Vitest
+	cd apps/web && pnpm typecheck && pnpm test
+
+.PHONY: generate-api-types
+generate-api-types:  ## Regenerate the TS contract from FastAPI's OpenAPI schema (ADR-0023)
+	$(UV) run python -m scripts.export_openapi
+	cd apps/web && pnpm generate:api
 
 .PHONY: mcp
 mcp:  ## Run the GTM MCP server over stdio (SIMULATED adapters)
