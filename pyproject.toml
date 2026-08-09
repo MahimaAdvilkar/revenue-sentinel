@@ -133,6 +133,9 @@ ignore_missing_imports = true
 # ---------------------------------------------------------------------------
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# The repository root, so `scripts/` is importable. `scripts.check_fixtures` is a CI gate
+# with its own tests; a gate nobody tests is a gate nobody knows works.
+pythonpath = ["."]
 asyncio_mode = "auto"
 addopts = "--strict-markers --strict-config -ra"
 markers = [

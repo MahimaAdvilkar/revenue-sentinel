@@ -4,11 +4,27 @@
   "prompt_digest": "34d47a1dd585f6953955909a2cc413eef30857a836b1eac92fbae8e646d6cbb9",
   "output": {
     "requests": [
-      {"source": "crm_get_opportunity", "reason": "Anchor the analysis to the deal record as the CRM currently holds it."},
-      {"source": "crm_list_account_activities", "reason": "Determine the nature of the last sales contact, not merely its date."},
-      {"source": "product_get_usage_summary", "reason": "Quantify the week-over-week trend the incident is predicated on."},
-      {"source": "engagement_get_email_activity", "reason": "Distinguish asynchronous engagement from genuine disengagement."},
-      {"source": "support_get_open_issues", "reason": "Surface unresolved friction that could be blocking the proposal."}
+      {
+        "source": "crm_get_opportunity",
+        "reason": "Anchor the analysis to the deal record as the CRM currently holds it."
+      },
+      {
+        "source": "crm_list_account_activities",
+        "reason": "Determine the nature of the last sales contact, not merely its date."
+      },
+      {
+        "source": "product_get_usage_summary",
+        "reason": "Quantify the week-over-week trend the incident is predicated on."
+      },
+      {
+        "source": "engagement_get_email_activity",
+        "reason": "Distinguish asynchronous engagement from genuine disengagement."
+      },
+      {
+        "source": "support_get_open_issues",
+        "reason": "Surface unresolved friction that could be blocking the proposal."
+      }
     ]
-  }
+  },
+  "template_digest": "bd9bdb5b3c9b879a5664f0e911ce76900a7c6998924305084ad3807016376405"
 }
