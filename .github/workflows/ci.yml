@@ -111,6 +111,114 @@ jobs:
       - name: Workflow evaluation suite
         run: uv run pytest tests/evaluation -ra
 
+  frontend:
+    name: Frontend contract, typecheck, build, tests
+    runs-on: ubuntu-latest
+    # No database and no API key: the dashboard builds against a checked-in OpenAPI
+    # schema, so this job is fast and fully offline.
+    #
+    # Step order matters. `tests/offline.test.ts` scans the **built output** for CDN,
+    # font, and analytics hosts, so the build has to happen before the tests -- running
+    # them the other way round either fails on a missing `.next` or, worse, passes
+    # against a stale one.
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: apps/web/pnpm-lock.yaml
+
+      # `--frozen-lockfile` fails when the lockfile drifted from package.json rather
+      # than silently resolving something else.
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # The frontend half of ADR-0023: `generated/api.ts` must be exactly what the
+      # generator produces from the committed `generated/openapi.json`. This needs no
+      # Python and no backend, and it catches the one failure the `contract` job below
+      # cannot see -- a hand-edited generated file. The `contract` job checks the other
+      # half: that `openapi.json` still matches the live FastAPI app.
+      - name: Generated types match the committed schema
+        run: |
+          pnpm generate:api
+          if ! git diff --quiet -- generated/api.ts; then
+            echo "::error::generated/api.ts was hand-edited or is stale. Run 'make generate-api-types'."
+            git --no-pager diff -- generated/api.ts
+            exit 1
+          fi
+          echo "generated/api.ts matches generated/openapi.json."
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Production build
+        run: pnpm build
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+
+      - name: Build output exists for the offline scan to inspect
+        run: test -d .next || { echo "::error::no build output"; exit 1; }
+
+      # Includes the offline built-output scan, which is why it runs after the build.
+      - name: Tests
+        run: pnpm test
+
+  contract:
+    name: Generated API contract is current
+    runs-on: ubuntu-latest
+    # ADR-0023's guarantee only holds if something enforces it. A backend field
+    # rename merged without regenerating leaves the frontend compiling against a
+    # stale contract -- which is exactly the silent drift generation exists to
+    # prevent, and nothing else in CI would notice.
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.12.3
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: apps/web/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: |
+          uv sync --all-extras
+          cd apps/web && pnpm install --frozen-lockfile
+
+      - name: Regenerate the contract
+        run: |
+          uv run python -m scripts.export_openapi
+          cd apps/web && pnpm generate:api
+
+      - name: Fail if the committed contract is stale
+        run: |
+          if ! git diff --quiet -- apps/web/generated; then
+            echo "::error::apps/web/generated is out of date. Run 'make generate-api-types' and commit the result."
+            git --no-pager diff --stat -- apps/web/generated
+            exit 1
+          fi
+          echo "Generated contract matches the API."
+
   secrets:
     name: Secret scan
     runs-on: ubuntu-latest
