@@ -6,6 +6,9 @@ over `seed` so the documented `make seed` target and this CLI cannot drift apart
 
 from __future__ import annotations
 
+from typing import Annotated
+from uuid import UUID
+
 import typer
 
 from revenue_sentinel.core.config import get_settings
@@ -16,7 +19,9 @@ from revenue_sentinel.cost.summary import CostSummary, summarise_run
 from revenue_sentinel.cost.timeline import incident_timeline
 from revenue_sentinel.db.seeding import seed_database
 from revenue_sentinel.db.session import build_engine, build_session_factory, session_scope
+from revenue_sentinel.domain.enums import ActionStatus
 from revenue_sentinel.events.pipeline import run_ingestion_cycle
+from revenue_sentinel.execution import reconciliation
 from revenue_sentinel.execution.service import summarise as execution_summary
 from revenue_sentinel.governance import approval_service
 from revenue_sentinel.orchestration.runner import resume_investigation, run_investigation
@@ -356,3 +361,139 @@ def cost(incident_ref: str = "INC-001", timeline: bool = False) -> None:
     except RevenueSentinelError as error:
         typer.secho(f"error: {error}", err=True, fg=typer.colors.RED)
         raise typer.Exit(code=1) from error
+
+
+# ---------------------------------------------------------------------------
+# Reconciling an uncertain effect (ADR-0025)
+# ---------------------------------------------------------------------------
+RECONCILE_CAVEAT = (
+    "Execution is at-least-once with an explicit unknown (ADR-0017). This records what "
+    "a person attests happened; it does not make delivery exactly-once."
+)
+
+
+@app.command()
+def actions(status: str = "indeterminate") -> None:
+    """List actions awaiting human reconciliation.
+
+    Only `indeterminate` is listed: it is the one status that requires a person, which
+    is the whole reason this command exists.
+    """
+    if status != "indeterminate":
+        typer.secho(
+            "only --status indeterminate is supported; other statuses need no decision",
+            err=True,
+            fg=typer.colors.RED,
+        )
+        raise typer.Exit(code=2)
+
+    settings = get_settings()
+    configure_logging(level=settings.log_level, log_format=settings.log_format)
+    factory = build_session_factory(build_engine(settings))
+
+    with session_scope(factory) as session:
+        rows = reconciliation.list_uncertain(session)
+
+        if not rows:
+            typer.echo("No indeterminate actions. Nothing is waiting on a person.")
+            return
+
+        typer.echo(f"{len(rows)} action(s) whose outcome is unknown:")
+        for row in rows:
+            typer.echo(f"  {row.action_record_id}  {row.action_type}  {row.incident_ref}")
+            typer.echo(f"      target {row.target_ref} -- {row.integration_status}")
+            typer.echo(f"      attempts {row.attempt_count}, claimed {row.claimed_at}")
+            typer.echo(f"      inspect: uv run rs action {row.action_record_id}")
+        typer.secho(f"\n{RECONCILE_CAVEAT}", fg=typer.colors.YELLOW)
+
+
+@app.command()
+def action(action_record_id: str) -> None:
+    """Everything an operator needs to decide whether one uncertain effect happened."""
+    settings = get_settings()
+    configure_logging(level=settings.log_level, log_format=settings.log_format)
+    factory = build_session_factory(build_engine(settings))
+
+    try:
+        with session_scope(factory) as session:
+            record = reconciliation.get_action(session, UUID(action_record_id))
+
+            typer.echo(f"action        {record.id}")
+            typer.echo(f"type          {record.action_type.value}")
+            typer.echo(f"status        {record.status.value}")
+            typer.echo(f"target        {record.target_ref}")
+            typer.echo(f"attempts      {record.attempt_count}")
+            typer.echo(f"idempotency   {record.idempotency_key}")
+            typer.echo(f"authorized by policy evaluation {record.authorized_by}")
+            typer.echo(f"approval      {record.approval_request_id or 'none (Tier 1)'}")
+            typer.echo(f"result        {record.result or 'none recorded'}")
+
+            if record.reconciled_by is not None:
+                typer.echo(f"\nreconciled by {record.reconciled_by} at {record.reconciled_at}")
+                typer.echo(f"evidence      {record.reconciliation_evidence}")
+                return
+
+            if record.status is not ActionStatus.INDETERMINATE:
+                return
+
+            typer.secho(
+                "\nThe outcome of this effect is unknown. The process claimed it and "
+                "died before recording what happened, so it may or may not have occurred.",
+                fg=typer.colors.YELLOW,
+            )
+            typer.echo(
+                "\nCheck the target system for evidence, then record what you found:\n"
+                f"  uv run rs reconcile {record.id} --outcome occurred "
+                "--as usr:your-name --evidence '<what you saw>'\n"
+                f"  uv run rs reconcile {record.id} --outcome did-not-occur "
+                "--as usr:your-name --evidence '<what you searched, and found nothing>'"
+            )
+            typer.echo(
+                "\nThere is deliberately no retry command. A retry becomes possible only "
+                "after somebody attests the effect did not occur (ADR-0025)."
+            )
+            typer.secho(f"\n{RECONCILE_CAVEAT}", fg=typer.colors.YELLOW)
+    except (reconciliation.ReconciliationError, ValueError) as error:
+        typer.secho(f"error: {error}", err=True, fg=typer.colors.RED)
+        raise typer.Exit(code=1) from error
+
+
+@app.command()
+def reconcile(
+    action_record_id: str,
+    # `Annotated` rather than a call in the default: ruff's B008 exempts plain `str`
+    # defaults but not an enum, and requiredness reads better as "no default" anyway.
+    outcome: Annotated[reconciliation.Outcome, typer.Option("--outcome")],
+    actor: Annotated[str, typer.Option("--as")],
+    evidence: Annotated[str, typer.Option("--evidence")],
+) -> None:
+    """Record what a person found about an uncertain effect.
+
+    `--evidence` is mandatory: this system cannot verify what you saw in an external
+    system, so the least it can do is require you to state it. `--as` is a claimed
+    identity, not an authenticated one (ADR-0018).
+    """
+    settings = get_settings()
+    configure_logging(level=settings.log_level, log_format=settings.log_format)
+    factory = build_session_factory(build_engine(settings))
+
+    try:
+        with session_scope(factory) as session:
+            record = reconciliation.reconcile(
+                session,
+                action_record_id=UUID(action_record_id),
+                outcome=outcome,
+                actor=actor,
+                evidence=evidence,
+                occurred_at=settings.evaluation_timestamp,
+            )
+            resolved = record.status.value
+            key = record.idempotency_key
+    except (reconciliation.ReconciliationError, ValueError) as error:
+        typer.secho(f"error: {error}", err=True, fg=typer.colors.RED)
+        raise typer.Exit(code=1) from error
+
+    typer.echo(f"{action_record_id} reconciled to {resolved} by {actor}")
+    typer.echo(f"idempotency key unchanged: {key}")
+    typer.secho(IDENTITY_WARNING, fg=typer.colors.YELLOW)
+    typer.secho(RECONCILE_CAVEAT, fg=typer.colors.YELLOW)

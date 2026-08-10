@@ -121,7 +121,27 @@ class ActionRecord(Base, TimestampMixin):
     executed_at: Mapped[timestamp_tz | None] = mapped_column(nullable=True)
     target_ref: Mapped[short_text]
 
+    # -- Reconciliation of an INDETERMINATE outcome (ADR-0025, migration 0009) --------
+    # An attestation lives on the row as well as in `audit_events`. The event is the
+    # history; these answer "is this resolved, and on whose word" without replaying it.
+    reconciled_by: Mapped[str | None] = mapped_column(sa.String(128), nullable=True)
+    """The *claimed* identity that attested the outcome. Not authenticated (ADR-0018)."""
+
+    reconciled_at: Mapped[timestamp_tz | None] = mapped_column(nullable=True)
+    reconciliation_evidence: Mapped[str | None] = mapped_column(sa.Text, nullable=True)
+    """What the operator says they observed. Required at write time and never verifiable
+    by this system -- recording the basis is the point, not proving it."""
+
     __table_args__ = (
         sa.CheckConstraint("attempt_count >= 0", name="attempt_count_non_negative"),
+        # A reconciliation is all three fields or none of them. A row claiming an actor
+        # with no evidence would be an attestation with no basis, which is what the
+        # mandatory-evidence rule exists to prevent -- enforced here so it cannot be
+        # bypassed by writing the row directly.
+        sa.CheckConstraint(
+            "(reconciled_by IS NULL) = (reconciled_at IS NULL) "
+            "AND (reconciled_by IS NULL) = (reconciliation_evidence IS NULL)",
+            name="reconciliation_is_complete_or_absent",
+        ),
         sa.Index("ix_action_records_run_id_status", "run_id", "status"),
     )
