@@ -38,6 +38,45 @@ check-env:  ## Verify the toolchain without installing anything
 	@echo "pnpm       : $$(pnpm --version 2>&1 || echo 'NOT FOUND')"
 	@echo "port 55432 : $$(lsof -ti :55432 >/dev/null 2>&1 && echo 'IN USE' || echo 'free')"
 
+.PHONY: quickstart
+quickstart:  ## One command from a clean clone to the golden scenario — offline, spends nothing
+	@echo "=============================================================="
+	@echo " Revenue Sentinel — quickstart"
+	@echo "=============================================================="
+	@echo " Prerequisites, checked below and never assumed:"
+	@echo "   * Docker Desktop, running     (PostgreSQL 16 on host port 55432)"
+	@echo "   * uv                          (https://docs.astral.sh/uv/)"
+	@echo "   * Python 3.12"
+	@echo ""
+	@echo " No API key. No network calls to any model provider. Spends nothing."
+	@echo " The frontend is separate: make web-install && make web."
+	@echo "=============================================================="
+	@$(MAKE) check-env
+	@docker info >/dev/null 2>&1 || { \
+		echo ""; \
+		echo "ERROR: the Docker daemon is not running."; \
+		echo "Start Docker Desktop and run 'make quickstart' again."; \
+		exit 1; \
+	}
+	@command -v $(UV) >/dev/null 2>&1 || { \
+		echo ""; \
+		echo "ERROR: uv is not installed. See https://docs.astral.sh/uv/getting-started/"; \
+		exit 1; \
+	}
+	@test -f .env || { \
+		echo ""; \
+		echo "Creating .env from .env.example (no real values)."; \
+		cp .env.example .env; \
+	}
+	$(MAKE) setup
+	$(MAKE) up
+	$(MAKE) migrate
+	$(MAKE) seed
+	DEMO_RESET=yes $(MAKE) demo
+	@echo ""
+	@echo "Done. Next: 'make eval' for the deterministic evaluation, or"
+	@echo "'make web-install && make web' for the dashboard (with 'make api' on :8000)."
+
 # ---------------------------------------------------------------------------
 # Infrastructure
 # ---------------------------------------------------------------------------
@@ -156,13 +195,16 @@ demo:  ## Run the golden scenario end to end — OFFLINE, no API key, $0
 	DEMO_MODE=fixture $(UV) run python -m scripts.demo
 
 .PHONY: smoke-live
-smoke-live:  ## [S10] Live model smoke test — REQUIRES ANTHROPIC_API_KEY, costs money
-	DEMO_MODE=live $(UV) run pytest -m live
+smoke-live:  ## Live model smoke test — REQUIRES ANTHROPIC_API_KEY, COSTS MONEY, never run in CI
+	@echo "This makes ONE real, billable Anthropic API call."
+	@echo "It is excluded from every default test run and from CI."
+	@printf "Continue? [y/N] " && read ans && [ "$$ans" = "y" ]
+	DEMO_MODE=live $(UV) run pytest -m live -ra
 
 .PHONY: record
-record:  ## [S10] Re-record LLM fixtures — REQUIRES ANTHROPIC_API_KEY, costs money
-	@printf "This makes real billable API calls. Continue? [y/N] " && read ans && [ "$$ans" = "y" ]
-	DEMO_MODE=record $(UV) run python -m scripts.record
+record:  ## Re-record LLM fixtures — REQUIRES ANTHROPIC_API_KEY, COSTS MONEY (ADR-0013)
+	@printf "This makes real billable API calls and overwrites fixtures. Continue? [y/N] " && read ans && [ "$$ans" = "y" ]
+	DEMO_MODE=record $(UV) run python -m scripts.record --confirm
 
 # ---------------------------------------------------------------------------
 # Housekeeping

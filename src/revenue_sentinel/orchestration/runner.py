@@ -42,6 +42,7 @@ from revenue_sentinel.governance.policy_engine import DeterministicPolicyEngine
 from revenue_sentinel.incidents.service import transition_incident
 from revenue_sentinel.integrations.simulated.behaviour import SimulatedBehaviour
 from revenue_sentinel.intelligence.factory import build_llm_client
+from revenue_sentinel.intelligence.ports import LLMClient
 from revenue_sentinel.mcp.client import InProcessMcpClient
 from revenue_sentinel.mcp.context import ToolContext, build_simulated_adapters
 from revenue_sentinel.orchestration.graph import GRAPH_VERSION, build_graph
@@ -137,9 +138,14 @@ def _window_inputs(
 
 
 def run_investigation(
-    session: Session, incident_ref: str, *, settings: Settings
+    session: Session, incident_ref: str, *, settings: Settings, llm: LLMClient | None = None
 ) -> InvestigationOutcome:
-    """Investigate one incident, end to end."""
+    """Investigate one incident, end to end.
+
+    `llm` overrides the client the mode would build. The only caller that passes one is
+    `scripts/record.py`, which wraps the live client to capture responses; leaving it
+    `None` gives the configured client, so the ordinary path is unchanged.
+    """
     incident_row = _load_incident(session, incident_ref)
     incident = Incident.model_validate(incident_row)
     if incident.status is not INVESTIGABLE_STATUS:
@@ -209,7 +215,7 @@ def run_investigation(
         # Admission control sits in front of the client, so BUDGET_EXCEEDED is raised
         # before any completion call. Fixture mode passes through it unchanged.
         llm=BudgetedLLMClient(
-            build_llm_client(settings),
+            llm or build_llm_client(settings),
             CostGovernor(session, run_id=run.id, incident_ref=incident_ref),
         ),
         evidence_source=McpEvidenceSource(InProcessMcpClient(tool_context), session),
