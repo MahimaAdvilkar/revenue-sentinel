@@ -52,6 +52,12 @@ dev = [
 
 [project.scripts]
 revenue-sentinel = "revenue_sentinel.cli:app"
+rs = "revenue_sentinel.cli:app"
+# `rs` is the short form the README, the demo output, and the approval inbox all print
+# as "the exact command to run". It was never registered, so `uv run rs approve ...`
+# silently resolved to /usr/bin/rs -- a BSD text utility -- and the documented command
+# did not work. Registering the alias makes the instruction true rather than rewriting
+# twelve places to say `revenue-sentinel`.
 
 [build-system]
 requires = ["hatchling"]
@@ -137,7 +143,10 @@ testpaths = ["tests"]
 # with its own tests; a gate nobody tests is a gate nobody knows works.
 pythonpath = ["."]
 asyncio_mode = "auto"
-addopts = "--strict-markers --strict-config -ra"
+# `-m "not live"` so the default run can never make a billable call. `make smoke-live`
+# passes its own `-m live`, which replaces this rather than adding to it. Deselected,
+# not skipped -- so "0 skipped" stays a meaningful claim.
+addopts = "--strict-markers --strict-config -ra -m 'not live'"
 markers = [
     "security: prompt-injection and policy-bypass cases",
     "evaluation: workflow rubric checks",
