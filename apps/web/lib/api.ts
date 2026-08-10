@@ -42,6 +42,10 @@ export type ObservedMetric = Schemas["ObservedMetric"];
 export type EvaluationHistory = Schemas["EvaluationHistoryResponse"];
 export type IntegrationCatalogue = Schemas["IntegrationCatalogueResponse"];
 
+// Session 11 -- actions whose outcome is unknown (ADR-0025).
+export type UncertainActions = Schemas["UncertainActionsResponse"];
+export type UncertainAction = Schemas["UncertainActionView"];
+
 /**
  * Every read path the dashboard uses, checked against the generated schema.
  *
@@ -95,6 +99,8 @@ export const api = {
   costCentre: () => get<CostCentre>("/cost"),
   evaluationHistory: () => get<EvaluationHistory>("/evaluation/runs"),
   integrations: () => get<IntegrationCatalogue>("/integrations"),
+  uncertainActions: (ref: string) =>
+    get<UncertainActions>(`/incidents/${ref}/uncertain-actions` as "/incidents/{incident_ref}/uncertain-actions"),
 };
 
 /**

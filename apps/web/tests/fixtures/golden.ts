@@ -15,6 +15,7 @@ import type {
   Intervention,
   Overview,
   Timeline,
+  UncertainActions,
 } from "@/lib/api";
 
 export const overview: Overview = {
@@ -297,4 +298,30 @@ export const integrationsWithOneReal: IntegrationCatalogue = {
     integrations.integrations[1]!,
   ],
   any_real: true,
+};
+
+/** One action left uncertain: claimed, then the process died before recording. */
+export const uncertainActions: UncertainActions = {
+  incident_ref: "INC-001",
+  actions: [
+    {
+      action_record_id: "11111111-1111-1111-1111-111111111111",
+      action_type: "crm_task",
+      status: "indeterminate",
+      target_ref: "OPP-2001",
+      idempotency_key: "idem-uncertain-0001",
+      attempt_count: 1,
+      authorized_by: "22222222-2222-2222-2222-222222222222",
+      approval_request_id: null,
+      reconciled_by: null,
+      reconciled_at: null,
+      reconciliation_evidence: null,
+      reconcile_command:
+        "uv run rs reconcile 11111111-1111-1111-1111-111111111111 " +
+        "--outcome occurred|did-not-occur --as usr:your-name --evidence '<what you saw>'",
+    },
+  ],
+  delivery_note:
+    "Execution is at-least-once with an explicit unknown (ADR-0017). Reconciliation " +
+    "records what a person attests happened; it does not make delivery exactly-once.",
 };

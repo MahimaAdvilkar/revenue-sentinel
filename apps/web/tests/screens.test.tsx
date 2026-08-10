@@ -25,6 +25,7 @@ vi.mock("@/lib/api", async () => {
       timeline: async () => fixtures.timeline,
       cost: async () => fixtures.cost,
       approvals: async () => fixtures.approvals,
+      uncertainActions: async () => fixtures.uncertainActions,
     },
   };
 });
@@ -141,5 +142,56 @@ describe("incident detail", () => {
   it("badges evidence from the returned integration_status", async () => {
     await renderDetail();
     expect(screen.getAllByTestId("badge-simulated").length).toBeGreaterThan(0);
+  });
+});
+
+describe("uncertain actions panel", () => {
+  async function renderDetail() {
+    const Page = (await import("@/app/incidents/[ref]/page")).default;
+    const api = await import("@/lib/api");
+    vi.spyOn(api.api, "incident").mockResolvedValue({
+      incident_ref: "INC-001",
+      title: "Stalled opportunity",
+      status: "completed",
+      severity: "high",
+      account: { account_ref: "ACC-1001", name: "Northwind Logistics", is_simulated: true },
+      opportunity: { opportunity_ref: "OPP-2001" },
+    } as never);
+    return render(await Page({ params: Promise.resolve({ ref: "INC-001" }) }));
+  }
+
+  it("renders an action whose outcome is unknown", async () => {
+    await renderDetail();
+
+    const row = screen.getByTestId("uncertain-11111111-1111-1111-1111-111111111111");
+    expect(row.textContent).toContain("crm_task");
+    expect(row.textContent).toContain("indeterminate");
+    expect(row.textContent).toContain("idem-uncertain-0001");
+  });
+
+  it("shows the exact CLI reconciliation command", async () => {
+    await renderDetail();
+
+    const command = screen.getByTestId(
+      "reconcile-command-11111111-1111-1111-1111-111111111111",
+    ).textContent;
+    expect(command).toContain("uv run rs reconcile");
+    expect(command).toContain("--outcome occurred|did-not-occur");
+    expect(command).toContain("--evidence");
+  });
+
+  it("never claims exactly-once delivery", async () => {
+    await renderDetail();
+
+    expect(screen.getByTestId("delivery-note").textContent).toContain("at-least-once");
+  });
+
+  it("offers no control that could reconcile or retry", async () => {
+    // ADR-0025: a "retry anyway" button is the most dangerous affordance this system
+    // could offer, and reconciliation is an accountable act by a named person.
+    const { container } = await renderDetail();
+
+    expect(container.querySelectorAll("button, form, input, select")).toHaveLength(0);
+    expect(container.textContent).toContain("no retry control");
   });
 });

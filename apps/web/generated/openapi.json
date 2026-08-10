@@ -1592,6 +1592,130 @@
         "title": "TimelineResponse",
         "type": "object"
       },
+      "UncertainActionView": {
+        "description": "One action whose outcome is genuinely unknown, awaiting a human (ADR-0025).",
+        "properties": {
+          "action_record_id": {
+            "title": "Action Record Id",
+            "type": "string"
+          },
+          "action_type": {
+            "title": "Action Type",
+            "type": "string"
+          },
+          "approval_request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval Request Id"
+          },
+          "attempt_count": {
+            "title": "Attempt Count",
+            "type": "integer"
+          },
+          "authorized_by": {
+            "title": "Authorized By",
+            "type": "string"
+          },
+          "idempotency_key": {
+            "title": "Idempotency Key",
+            "type": "string"
+          },
+          "reconcile_command": {
+            "title": "Reconcile Command",
+            "type": "string"
+          },
+          "reconciled_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reconciled At"
+          },
+          "reconciled_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reconciled By"
+          },
+          "reconciliation_evidence": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reconciliation Evidence"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "target_ref": {
+            "title": "Target Ref",
+            "type": "string"
+          }
+        },
+        "required": [
+          "action_record_id",
+          "action_type",
+          "status",
+          "target_ref",
+          "idempotency_key",
+          "attempt_count",
+          "authorized_by",
+          "approval_request_id",
+          "reconciled_by",
+          "reconciled_at",
+          "reconciliation_evidence",
+          "reconcile_command"
+        ],
+        "title": "UncertainActionView",
+        "type": "object"
+      },
+      "UncertainActionsResponse": {
+        "properties": {
+          "actions": {
+            "items": {
+              "$ref": "#/components/schemas/UncertainActionView"
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "delivery_note": {
+            "title": "Delivery Note",
+            "type": "string"
+          },
+          "incident_ref": {
+            "title": "Incident Ref",
+            "type": "string"
+          }
+        },
+        "required": [
+          "incident_ref",
+          "actions",
+          "delivery_note"
+        ],
+        "title": "UncertainActionsResponse",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "ctx": {
@@ -2117,6 +2241,59 @@
           }
         },
         "summary": "Timeline",
+        "tags": [
+          "dashboard"
+        ]
+      }
+    },
+    "/incidents/{incident_ref}/uncertain-actions": {
+      "get": {
+        "description": "Actions whose outcome is unknown, and the command that resolves one.\n\nRead-only, like everything else here. Reconciliation is an accountable act by a named\nperson and there is no authenticated identity, so this renders the CLI command rather\nthan offering a button (ADR-0022, ADR-0025).",
+        "operationId": "uncertain_actions_incidents__incident_ref__uncertain_actions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "incident_ref",
+            "required": true,
+            "schema": {
+              "title": "Incident Ref",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UncertainActionsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Uncertain Actions",
         "tags": [
           "dashboard"
         ]

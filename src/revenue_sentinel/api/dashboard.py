@@ -42,6 +42,8 @@ from revenue_sentinel.api.schemas import (
     OverviewResponse,
     TimelineEventView,
     TimelineResponse,
+    UncertainActionsResponse,
+    UncertainActionView,
 )
 from revenue_sentinel.core.config import get_settings
 from revenue_sentinel.cost import reporting as cost_reporting
@@ -52,7 +54,12 @@ from revenue_sentinel.db.models import governance as gov_orm
 from revenue_sentinel.db.models import investigation as inv_orm
 from revenue_sentinel.db.models import observability as obs_orm
 from revenue_sentinel.db.models import workflow as workflow_orm
-from revenue_sentinel.domain.enums import TERMINAL_INCIDENT_STATUSES, IncidentStatus
+from revenue_sentinel.domain.enums import (
+    TERMINAL_INCIDENT_STATUSES,
+    ActionStatus,
+    IncidentStatus,
+)
+from revenue_sentinel.execution import reconciliation
 from revenue_sentinel.governance import approval_service
 
 router = APIRouter(tags=["dashboard"])
@@ -369,4 +376,57 @@ def evaluation(session: Annotated[Session, Depends(get_session)]) -> EvaluationR
             )
             for item in results
         ],
+    )
+
+
+@router.get(
+    "/incidents/{incident_ref}/uncertain-actions",
+    response_model=UncertainActionsResponse,
+    responses=NOT_FOUND,
+)
+def uncertain_actions(
+    incident_ref: str, session: Annotated[Session, Depends(get_session)]
+) -> UncertainActionsResponse:
+    """Actions whose outcome is unknown, and the command that resolves one.
+
+    Read-only, like everything else here. Reconciliation is an accountable act by a named
+    person and there is no authenticated identity, so this renders the CLI command rather
+    than offering a button (ADR-0022, ADR-0025).
+    """
+    run_id = _run_id(session, incident_ref)
+
+    records = session.scalars(
+        sa.select(gov_orm.ActionRecord)
+        .where(
+            gov_orm.ActionRecord.run_id == run_id,
+            gov_orm.ActionRecord.status == ActionStatus.INDETERMINATE,
+        )
+        .order_by(gov_orm.ActionRecord.created_at)
+    ).all()
+
+    return UncertainActionsResponse(
+        incident_ref=incident_ref,
+        actions=[
+            UncertainActionView(
+                action_record_id=str(record.id),
+                action_type=record.action_type.value,
+                status=record.status.value,
+                target_ref=record.target_ref,
+                idempotency_key=record.idempotency_key,
+                attempt_count=record.attempt_count,
+                authorized_by=str(record.authorized_by),
+                approval_request_id=(
+                    str(record.approval_request_id) if record.approval_request_id else None
+                ),
+                reconciled_by=record.reconciled_by,
+                reconciled_at=record.reconciled_at,
+                reconciliation_evidence=record.reconciliation_evidence,
+                reconcile_command=(
+                    f"uv run rs reconcile {record.id} --outcome occurred|did-not-occur "
+                    f"--as usr:your-name --evidence '<what you saw>'"
+                ),
+            )
+            for record in records
+        ],
+        delivery_note=reconciliation.DELIVERY_CAVEAT,
     )

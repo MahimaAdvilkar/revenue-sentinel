@@ -398,3 +398,34 @@ class IntegrationCatalogueResponse(BaseModel):
     any_real: bool
     """`False` in v1. Computed from the declared statuses rather than hardcoded, so this
     stops being false the moment a real adapter is bound."""
+
+
+class UncertainActionView(BaseModel):
+    """One action whose outcome is genuinely unknown, awaiting a human (ADR-0025)."""
+
+    action_record_id: str
+    action_type: str
+    status: str
+    target_ref: str
+    idempotency_key: str
+    attempt_count: int
+    authorized_by: str
+    """The policy evaluation that permitted this. Every action traces to one."""
+
+    approval_request_id: str | None
+    """`None` for Tier 1, which is how auto-approved work is told from approved work."""
+
+    reconciled_by: str | None
+    reconciled_at: datetime | None
+    reconciliation_evidence: str | None
+    reconcile_command: str
+    """The exact CLI command. Rendered, never executed -- there is no HTTP mutation and
+    no browser control, because there is no authenticated identity (ADR-0022)."""
+
+
+class UncertainActionsResponse(BaseModel):
+    incident_ref: str
+    actions: list[UncertainActionView]
+    delivery_note: str
+    """States at-least-once. Reconciliation records what a person attests happened; it
+    does not make delivery exactly-once (ADR-0017)."""

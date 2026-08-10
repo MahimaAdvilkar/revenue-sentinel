@@ -32,12 +32,13 @@ export default async function IncidentDetailPage({
 }) {
   const { ref } = await params;
 
-  const [incident, investigation, interventions, timeline, cost] = await Promise.all([
+  const [incident, investigation, interventions, timeline, cost, uncertain] = await Promise.all([
     optional(() => api.incident(ref)),
     optional(() => api.investigation(ref)),
     optional(() => api.interventions(ref)),
     optional(() => api.timeline(ref)),
     optional(() => api.cost(ref)),
+    optional(() => api.uncertainActions(ref)),
   ]);
 
   if (!incident) return <ErrorNote message={`No incident ${ref}.`} />;
@@ -125,6 +126,62 @@ export default async function IncidentDetailPage({
               {item.reason ? <div className="rules">{item.reason}</div> : null}
             </div>
           ))}
+        </Section>
+      ) : null}
+
+      {uncertain && uncertain.actions.length > 0 ? (
+        <Section
+          title={`Uncertain actions (${uncertain.actions.length})`}
+          subtitle="Claimed, then the process died before recording the outcome. The effect may or may not have happened."
+        >
+          <p className="caveat" data-testid="delivery-note">{uncertain.delivery_note}</p>
+          <table>
+            <thead>
+              <tr>
+                <th>Action</th><th>Target</th><th>Status</th>
+                <th className="num">Attempts</th><th>Reconciled</th>
+              </tr>
+            </thead>
+            <tbody>
+              {uncertain.actions.map((item) => (
+                <tr key={item.action_record_id} data-testid={`uncertain-${item.action_record_id}`}>
+                  <td>
+                    {item.action_type}
+                    <div className="rules mono">{item.idempotency_key}</div>
+                  </td>
+                  <td>{item.target_ref}</td>
+                  <td className="outcome-failed">{item.status}</td>
+                  <td className="num">{item.attempt_count}</td>
+                  <td>
+                    {item.reconciled_by ? (
+                      <>
+                        {item.reconciled_by}
+                        <div className="rules">{item.reconciliation_evidence}</div>
+                      </>
+                    ) : (
+                      <Absent />
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          {/* No button, deliberately. Reconciliation is an accountable act by a named
+              person, and there is no authenticated identity (ADR-0022, ADR-0025). */}
+          <p className="subtitle">
+            Resolving one is a human attestation with mandatory evidence. There is no
+            retry control: a retry becomes possible only after somebody attests the effect
+            did not occur.
+          </p>
+          {uncertain.actions
+            .filter((item) => !item.reconciled_by)
+            .map((item) => (
+              <pre className="cli" key={`cmd-${item.action_record_id}`}
+                   data-testid={`reconcile-command-${item.action_record_id}`}>
+                {item.reconcile_command}
+              </pre>
+            ))}
         </Section>
       ) : null}
 

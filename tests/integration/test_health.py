@@ -106,6 +106,7 @@ def test_the_application_exposes_exactly_the_expected_routes(client: TestClient)
         "/incidents/{incident_ref}/interventions",
         "/incidents/{incident_ref}/timeline",
         "/incidents/{incident_ref}/cost",
+        "/incidents/{incident_ref}/uncertain-actions",
         "/approvals",
         "/evaluation/latest",
         # Session 10 -- cost centre, evaluation history, integration catalogue

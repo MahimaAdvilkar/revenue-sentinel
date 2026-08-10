@@ -243,6 +243,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/incidents/{incident_ref}/uncertain-actions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Uncertain Actions
+         * @description Actions whose outcome is unknown, and the command that resolves one.
+         *
+         *     Read-only, like everything else here. Reconciliation is an accountable act by a named
+         *     person and there is no authenticated identity, so this renders the CLI command rather
+         *     than offering a button (ADR-0022, ADR-0025).
+         */
+        get: operations["uncertain_actions_incidents__incident_ref__uncertain_actions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/ingest": {
         parameters: {
             query?: never;
@@ -910,6 +934,45 @@ export interface components {
             /** Trace Count */
             trace_count: number;
         };
+        /**
+         * UncertainActionView
+         * @description One action whose outcome is genuinely unknown, awaiting a human (ADR-0025).
+         */
+        UncertainActionView: {
+            /** Action Record Id */
+            action_record_id: string;
+            /** Action Type */
+            action_type: string;
+            /** Approval Request Id */
+            approval_request_id: string | null;
+            /** Attempt Count */
+            attempt_count: number;
+            /** Authorized By */
+            authorized_by: string;
+            /** Idempotency Key */
+            idempotency_key: string;
+            /** Reconcile Command */
+            reconcile_command: string;
+            /** Reconciled At */
+            reconciled_at: string | null;
+            /** Reconciled By */
+            reconciled_by: string | null;
+            /** Reconciliation Evidence */
+            reconciliation_evidence: string | null;
+            /** Status */
+            status: string;
+            /** Target Ref */
+            target_ref: string;
+        };
+        /** UncertainActionsResponse */
+        UncertainActionsResponse: {
+            /** Actions */
+            actions: components["schemas"]["UncertainActionView"][];
+            /** Delivery Note */
+            delivery_note: string;
+            /** Incident Ref */
+            incident_ref: string;
+        };
         /** ValidationError */
         ValidationError: {
             /** Context */
@@ -1263,6 +1326,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TimelineResponse"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    uncertain_actions_incidents__incident_ref__uncertain_actions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                incident_ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UncertainActionsResponse"];
                 };
             };
             /** @description Not Found */

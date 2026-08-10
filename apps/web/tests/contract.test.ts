@@ -44,6 +44,7 @@ describe("generated OpenAPI contract", () => {
       "/incidents/{incident_ref}/timeline",
       "/incidents/{incident_ref}/cost",
       "/approvals",
+      "/incidents/{incident_ref}/uncertain-actions",
       "/cost",
       "/evaluation/latest",
       "/evaluation/runs",
@@ -52,6 +53,20 @@ describe("generated OpenAPI contract", () => {
       expect(paths[path], `${path} missing from the schema`).toBeDefined();
       expect(paths[path]?.get, `${path} should be a GET`).toBeDefined();
     }
+  });
+
+  it("exposes no way to reconcile an uncertain action over HTTP", () => {
+    // ADR-0025: reconciliation is an accountable human act with mandatory evidence, and
+    // there is no authenticated identity. The CLI is the only mutation surface, so the
+    // generated contract must offer nothing that looks like a reconcile button's backend.
+    const reconciliationMutations = Object.entries(paths).flatMap(([path, ops]) =>
+      Object.keys(ops)
+        .filter((method) => ["post", "put", "patch", "delete"].includes(method))
+        .filter(() => /reconcile|uncertain|action/i.test(path))
+        .map((method) => `${method.toUpperCase()} ${path}`),
+    );
+    expect(reconciliationMutations).toEqual([]);
+    expect(paths["/incidents/{incident_ref}/uncertain-actions"]?.get).toBeDefined();
   });
 
   it("serialises money and cost as strings, not numbers", () => {
