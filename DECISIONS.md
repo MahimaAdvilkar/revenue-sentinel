@@ -74,6 +74,31 @@ Recorded rather than resolved prematurely. Each names when it must be answered.
 
 ---
 
+## Session 11 — contract hardening
+
+**`POLICY_ENGINE_UNAVAILABLE` is its own MCP error code** (owned by ADR-0015; not worth a
+separate record). A write tool reached with no policy engine bound used to raise
+`MissingPolicyEngineError` out of the dispatcher. Measured before it was changed: over
+real stdio the SDK turned that into a protocol-level `MCPError` -- no envelope, no code,
+no `integration_status`, and nothing a client could use to distinguish a misconfigured
+server from a crashed one. It failed closed, which was right, and said nothing, which was
+not.
+
+It is now a typed envelope with `retry: false` and `alternative_route: false`, pinned over
+both transports with payload equality. **Deliberately distinct from `POLICY_DENIED`**: a
+denial is a decision about the request, this is a deployment fault, and collapsing them
+would send an operator looking for a rule that does not exist. The ledger records it as
+`DENIED` rather than `ERROR`, because nothing was executed and a generic error could be
+read as a partial attempt.
+
+**`rs` is a registered console script.** The README, the demo output, the approval inbox,
+and ADR-0018 all print `uv run rs ...` as the exact command to run. Only
+`revenue-sentinel` was registered, so on macOS `uv run rs` resolved to `/usr/bin/rs`, a
+BSD text-reshaping utility. Registering the alias makes twelve documented commands true
+rather than rewriting them all to the long form.
+
+---
+
 ## Rejected
 
 Recorded because a rejected option with a reason is more useful than an option nobody
@@ -93,3 +118,7 @@ considered.
 | Live model calls in the demo path | Network, budget, rate limit, and variance — four ways to fail in an interview room (ADR-0007) |
 | A single end-to-end output snapshot instead of per-call fixtures | Tests nothing about intermediate steps and invalidates wholesale on any change |
 | Reporting detector precision/recall from one fixture | Would be a fabricated metric |
+| A "retry anyway" control on an uncertain action | Looks helpful; duplicates a real-world effect. A retry is reachable only after a human attests the effect did not occur (ADR-0025) |
+| Auto-resolving INDETERMINATE actions on a timeout | Converts "we do not know" into "it did not happen" on the basis of elapsed time, and hides exactly the effects worth finding (ADR-0025) |
+| `SELECT ... FOR UPDATE` for global budget admission | Holds a row lock across a model call; a hung call would block every concurrent run (ADR-0026) |
+| A budget reservation ledger in v1 | A leaked reservation is the INDETERMINATE problem in a second costume, for a budget that has spent $0.000000 (ADR-0026) |

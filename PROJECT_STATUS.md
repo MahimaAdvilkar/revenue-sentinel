@@ -1,8 +1,8 @@
 # Project Status
 
 **Last updated:** 2026-08-08
-**Current milestone:** Session 10 — Remaining surfaces, CI, release readiness ✅ **COMPLETE**
-**Next milestone:** Session 11 — Hardening and close-out (awaiting approval)
+**Current milestone:** Session 11 — Hardening and close-out ✅ **COMPLETE**
+**Next milestone:** none. v1 is closed.
 
 ---
 
@@ -17,7 +17,8 @@ figures did not move by a cent.
 | Question | Answer |
 |---|---|
 | Can you run it? | Yes — `make setup && make up && make migrate && make seed && make ingest && make investigate` |
-| Can you run the tests? | Yes — **1011 backend, 0 skipped, 0 xfailed**, plus **55 frontend** |
+| Can you run the tests? | Yes — **1,056 backend, 0 skipped, 0 xfailed**, plus **60 frontend**. One `live` test exists and is deselected by default |
+| **Can an uncertain effect be resolved?** | **Yes, as of Session 11.** `rs reconcile` — human-attested, evidence mandatory, two outcomes, no retry button (ADR-0025) |
 | **Is there a dashboard?** | **Yes.** Seven screens — overview, incident queue, incident detail, approval inbox, **cost centre, evaluation centre, integration catalogue**. `make web` |
 | **Does a fresh checkout work?** | **Yes, verified in Session 10** — install, migrate, seed, demo, eval, 1011 backend tests, and the frontend build all pass from a clone-equivalent tree |
 | **Does CI gate the frontend?** | **Yes.** Contract freshness, typecheck, build, and tests — with the offline scan running against the built output |
@@ -414,6 +415,49 @@ regenerating produces a diff, and adding a field to an API model changes `openap
 
 ---
 
+### Session 11 — Hardening and close-out ✅
+
+**Delivered**
+
+| Group | Detail |
+|---|---|
+| `execution/reconciliation.py` + CLI | `rs actions`, `rs action`, `rs reconcile` — the `INDETERMINATE` state stops being inert |
+| `alembic/0009` | `reconciled_by` / `reconciled_at` / `reconciliation_evidence`, with a CHECK making a partial attestation unrepresentable |
+| `mcp/errors.py`, `mcp/gate.py` | `POLICY_ENGINE_UNAVAILABLE` — a typed envelope where an unhandled exception used to escape |
+| `cost/governor.py` | `overshoot_bound()` — the concurrency limitation quantified rather than gestured at |
+| `scripts/record.py` | The recording path ADR-0013 promised and the repository did not have |
+| `tests/live/` | One genuine `live` smoke test, deselected by default, **never run** |
+| `Makefile` | `make quickstart`; `record` and `smoke-live` made honest |
+| Docs | `CASE_STUDY.md`, `docs/INTERVIEW_GUIDE.md`, `docs/DEMO_SCRIPT.md`, **ADR-0025**, **ADR-0026** |
+
+**`INDETERMINATE` was reachable and inert for five sessions.** The executor set it correctly,
+a test proved it, and nothing could resolve it. A state meaning "a person must decide" with no
+affordance for that person accumulates silently and is discovered during an incident. It is
+now resolvable by an attested human: evidence mandatory, two outcomes, second reconciliation
+refused, idempotency key never released, and **no retry control** — a retry becomes reachable
+only after somebody attests the effect did not occur.
+
+**The MCP refusal was measured before it was changed.** A write tool reached with no policy
+engine used to raise out of the dispatcher; over real stdio the SDK turned that into a
+protocol-level `MCPError` with no envelope, no code, and nothing to distinguish a
+misconfigured server from a crashed one. It failed closed, which was right, and said nothing,
+which was not. It is now a typed `POLICY_ENGINE_UNAVAILABLE` result — deliberately distinct
+from `POLICY_DENIED`, because a denial is a decision about the request and this is a
+deployment fault.
+
+**Two repository claims turned out to be false, and were fixed rather than reworded.**
+`make record` invoked `scripts.record`, which did not exist — ADR-0013 named it as the path to
+real fixtures, so anyone following the documentation got `ModuleNotFoundError`. And
+`uv run rs ...`, printed by the README, the demo, and the approval inbox as *the exact command
+to run*, resolved to `/usr/bin/rs`: only `revenue-sentinel` was ever registered as a console
+script. Twelve documented commands did not work.
+
+**`make smoke-live` verified nothing.** It ran `pytest -m live` against zero marked tests and
+exited clean, which reads as a pass. There is now one real live test, and the default run
+carries `-m "not live"` so no ordinary invocation can make a billable call.
+
+---
+
 ## What is real and what is not
 
 **Real:** the graph and its four nodes; transition recording before each node; the LLM
@@ -738,8 +782,10 @@ designed (it never falls back to a live call), but it means the CLI demo wants a
 database. The full MCP-backed graph on `INC-001` is exercised by the integration suite on
 every run.
 
-**11 of 29 tables still have no accessor** — the governance, execution, cost, and
-evaluation tables. `tool_calls` gained one in Session 4.
+**8 of 29 tables still have no accessor.** The cost, evaluation, and governance tables
+gained accessors across Sessions 7-11; `action_records` gained one with the reconciliation
+tooling. The remainder are event-substrate tables read only by the pipeline that writes
+them.
 
 ---
 

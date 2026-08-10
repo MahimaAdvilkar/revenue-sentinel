@@ -34,6 +34,8 @@ too — an ADR is where tribal knowledge goes to become reviewable.
 | [0022](0022-read-only-dashboard.md) | The dashboard is read-only until authenticated identity exists | Accepted | 2026-08-08 |
 | [0023](0023-openapi-generated-typescript-contract.md) | OpenAPI-generated TypeScript is the frontend/backend contract | Accepted | 2026-08-09 |
 | [0024](0024-partial-fixture-freshness-digest.md) | Fixture freshness is checked by a deliberately partial digest | Accepted | 2026-08-08 |
+| [0025](0025-human-attested-indeterminate-reconciliation.md) | `INDETERMINATE` actions are reconciled by an attested human | Accepted | 2026-08-09 |
+| [0026](0026-global-budget-concurrency-boundary.md) | Concurrent `GLOBAL` budget enforcement stays a bounded, documented limitation | Accepted | 2026-08-09 |
 
 ---
 

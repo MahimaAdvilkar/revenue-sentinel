@@ -1,6 +1,6 @@
 # Capability Matrix
 
-**Last updated:** 2026-08-08 — end of Session 10
+**Last updated:** 2026-08-09 — end of Session 11 (v1 closed)
 **Rule:** every capability in this repository carries exactly one of four statuses, and the
 status shown here matches what the code and the dashboard say (rules 5 and 19).
 
@@ -342,6 +342,10 @@ They are counted by the registry and excluded from execution by `implemented_det
 | **Integration catalogue** | **IMPLEMENTED** | 10 — status and roadmap copy read from each adapter module, never restated in the API or UI |
 | Per-attempt evaluation detail (older attempts) | **NOT BUILT** | 10 — `/evaluation/runs` returns summaries; per-check detail exists for the latest attempt only, and the screen says so |
 | **Frontend MCP views (tool catalog, tool-call timeline)** | SCAFFOLDED | 9–10 — the ledger rows exist; nothing renders them |
+| **`INDETERMINATE` reconciliation (CLI)** | **IMPLEMENTED** | 11 — human-attested, evidence mandatory, no retry control (ADR-0025) |
+| **Uncertain-actions panel (read-only)** | **IMPLEMENTED** | 11 — renders the CLI command; no button, form, or input |
+| **Browser reconciliation mutation** | **NOT A CAPABILITY** | Same reason as approvals: no authenticated identity (ADR-0022) |
+| **Concurrency-safe GLOBAL budgets** | **NOT IMPLEMENTED — bounded and documented** | 11 — overshoot bound computed and unit tested; deliberately unfixed (ADR-0026) |
 | Authentication | ROADMAP | — |
 | Multi-tenancy | ROADMAP | — |
 

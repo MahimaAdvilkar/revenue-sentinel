@@ -492,6 +492,23 @@ budgets, and OTLP/Prometheus export all carry into Session 11.
 
 ---
 
+## Session 11 — Hardening and close-out ✅ COMPLETE
+
+**Delivered.** `INDETERMINATE` reconciliation (service, CLI, migration 0009, read-only
+panel), the `POLICY_ENGINE_UNAVAILABLE` wire contract pinned over both transports, the
+global-budget overshoot bound, `make quickstart`, honest `record` and `smoke-live` targets,
+and the portfolio documents. **1,056 backend tests, 60 frontend tests, ADRs 0025 and 0026.**
+
+**Deviations.** Two defects found while working rather than planned for: `scripts/record.py`
+did not exist despite `make record` invoking it, and `rs` was never registered as a console
+script although twelve documented commands used it. Both fixed. Screenshots could not be
+captured in this environment (see PROJECT_STATUS).
+
+**Deliberately not built:** authentication, browser mutation, live integrations, live model
+usage, cloud deployment, OTLP/Prometheus, concurrency-safe global budgets.
+
+---
+
 ## Session 11 — Portfolio packaging
 
 **Objective.** Make the work legible to someone who has five minutes and no context.

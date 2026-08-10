@@ -8,17 +8,49 @@ cost, and evaluates its own behaviour.
 
 ---
 
+[![CI](https://github.com/MahimaAdvilkar/revenue-sentinel/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/MahimaAdvilkar/revenue-sentinel/actions/workflows/ci.yml)
+
+## The result, before the caveats
+
+One command from a clean clone to the whole scenario, offline and for nothing:
+
+```bash
+make quickstart     # check-env → setup → up → migrate → seed → demo
+```
+
+**`INC-001`** — a $180,000 opportunity, silent for 14 days while product usage climbed.
+The agent plans an investigation, gathers **6 evidence items** through MCP tools, produces
+**2 hypotheses** each citing real evidence, and computes — in ordinary tested Python, never
+in the model — **$108,000 weighted / $32,130 at risk**. It ranks **3 interventions** that
+receive **three different policy answers**: one allowed and executed, one requiring human
+approval, one denied. The approved one becomes an **unsent draft**.
+
+**Total spend: `$0.000000`.** No API key, no network call to a model provider, no external
+system contacted. Not once, ever.
+
+**And the caveats, immediately:** every integration is SIMULATED; the LLM fixtures are
+hand-authored, so they prove the pipeline and not the prompts; there is no authentication,
+so the dashboard is read-only; and nothing here measures real-world precision or
+effectiveness. All of that is enforced in code and listed in
+[`CAPABILITY_MATRIX.md`](CAPABILITY_MATRIX.md).
+
+**Read next:** [`CASE_STUDY.md`](CASE_STUDY.md) for the design walkthrough ·
+[`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md) for a 5-minute demo ·
+[`docs/INTERVIEW_GUIDE.md`](docs/INTERVIEW_GUIDE.md) for the questions and their limits.
+
+---
+
 ## ⚠️ Current status — read this first
 
-> **Session 10 of 11 is complete: detect, investigate, decide, approve, execute, account
+> **Session 11 of 11 is complete: detect, investigate, decide, approve, execute, account
 > for every cent, evaluate itself — and show all of it in a dashboard. Offline and for
 > free.**
 >
 > `make investigate INCIDENT=INC-001` produces a plan, six evidence items, two hypotheses
 > each citing real evidence, **$108,000 weighted / $32,130 at risk**, and three ranked
 > interventions carrying **one ALLOW, one REQUIRE_APPROVAL and one DENY** — with no API key
-> and no network. Verified by **1011 backend tests** and **55 frontend tests**, all
-> re-run from a fresh checkout.
+> and no network. Verified by **1,056 backend tests** and **60 frontend tests**, all
+> re-run from a fresh clone.
 >
 > **The GTM MCP server is real.** 15 narrow, strictly-typed tools; no `run_sql`, no
 > `http_request`. Two transports, both IMPLEMENTED: the in-process client the graph and
@@ -102,9 +134,15 @@ cost, and evaluates its own behaviour.
 > the same constant stamped on every tool result, the notes parsed from the module's own
 > docstring. A catalogue that could disagree with the adapters would be worse than none.
 >
-> What does not exist yet: **authentication, live integrations, live model usage,
-> `INDETERMINATE` reconciliation, concurrency-safe global budgets, and OTLP/Prometheus
-> export.** See [`PROJECT_STATUS.md`](PROJECT_STATUS.md) for the precise state.
+> **An uncertain effect is now resolvable.** When a process dies between claiming an effect
+> and recording it, the action becomes `INDETERMINATE` rather than being guessed at. A person
+> resolves it with `rs reconcile`, stating evidence — mandatory, attributed, and kept. Two
+> outcomes only, no "resolved but unknown", and **no retry button**: a retry becomes reachable
+> only after somebody attests the effect did not occur (ADR-0025). It is still at-least-once,
+> and nothing claims otherwise.
+>
+> What does not exist yet: **authentication, browser approval mutation, live integrations,
+> live model usage, concurrency-safe global budgets, and OTLP/Prometheus export.** See [`PROJECT_STATUS.md`](PROJECT_STATUS.md) for the precise state.
 >
 > **All integrations are SIMULATED by design.** No real HubSpot, Salesforce, Gmail, Slack,
 > customer, or employer data is connected — now or during the initial build. Every
@@ -224,13 +262,14 @@ Verified from a clean database against the current commit:
 
 ```bash
 cp .env.example .env    # then set POSTGRES_PASSWORD and match it in DATABASE_URL
+make quickstart         # everything below, in one command, from a clean clone
 make setup              # install dependencies (uv, Python 3.12.3)
 make up                 # start PostgreSQL on host port 55432
 make migrate            # 29 tables, 27 native enum types
 make seed               # 92 deterministic rows, all is_simulated = true
 make ingest             # detect signals and open incidents (SIMULATED source feed)
 make investigate        # run the investigation graph offline (INCIDENT=INC-001)
-make check              # lint, format, mypy --strict, boundaries, 1011 tests
+make check              # lint, format, mypy --strict, boundaries, 1,056 tests
 make api                # then: curl localhost:8000/incidents/INC-001
 make mcp                # the GTM MCP server over stdio (SIMULATED adapters)
 make demo               # the whole scenario end to end — offline, $0, resets local data
@@ -286,8 +325,10 @@ to the wrong database.
   data this project does not have, and reporting a number without it would be fabrication
 - Not measuring cache effectiveness — the counters exist and have never been non-zero,
   which the dashboard states rather than rounding to `0%`
-- Not exactly-once: execution is at-least-once with an explicit `INDETERMINATE` state, and
-  there is no reconciliation tooling for it yet
+- Not exactly-once: execution is at-least-once with an explicit `INDETERMINATE` state,
+  resolved by an attested human rather than by a retry (ADR-0025)
+- Not safe against concurrent global budget races — bounded, tested, and documented rather
+  than fixed (ADR-0026)
 
 Full list in [`docs/product-requirements.md`](docs/product-requirements.md) §7 and
 [`docs/scaling-roadmap.md`](docs/scaling-roadmap.md).
