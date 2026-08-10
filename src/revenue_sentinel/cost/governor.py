@@ -93,6 +93,29 @@ class CostGovernor:
                 return refusal
         return None
 
+    @staticmethod
+    def overshoot_bound(concurrent_runs: int, worst_case_reservation: Decimal) -> Decimal:
+        """How far a hard `GLOBAL` budget can be exceeded by racing admissions (ADR-0026).
+
+        Admission reads `consumed_usd` and the caller proceeds on it; consumption itself
+        is race-free (`UPDATE ... SET consumed = consumed + :amount`). So with `N` runs
+        admitting concurrently, each may be admitted against a figure omitting at most
+        `N-1` other in-flight reservations:
+
+            (concurrent_runs - 1) * worst_case_reservation
+
+        **One run overshoots by exactly zero**, which is the guarantee serialization
+        within a run actually provides -- and the reason this is a bounded limitation
+        rather than an unbounded one.
+
+        This is a *bound*, not a measurement: no concurrent run has ever happened here.
+        """
+        if concurrent_runs < 1:
+            raise ValueError(f"concurrent_runs must be >= 1, got {concurrent_runs}")
+        if worst_case_reservation < 0:
+            raise ValueError("worst_case_reservation cannot be negative")
+        return (Decimal(concurrent_runs - 1) * worst_case_reservation).quantize(Decimal("0.000001"))
+
     def reserve_or_raise(self, amount_usd: Decimal) -> None:
         """Raise `BUDGET_EXCEEDED` if any hard budget cannot absorb the worst case."""
         refusal = self.check_affordable(amount_usd)

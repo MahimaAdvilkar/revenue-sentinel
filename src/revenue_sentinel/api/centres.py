@@ -48,9 +48,11 @@ router = APIRouter(tags=["centres"])
 MICRO: Final = Decimal("0.000001")
 
 CONCURRENCY_NOTE: Final = (
-    "GLOBAL budget enforcement is not atomic across concurrent independent runs. "
-    "Read-then-call is sound only because model calls are serialized within a run "
-    "(ADR-0019)."
+    "GLOBAL budget admission is not atomic across concurrent independent runs. "
+    "Consumption is race-free; admission reads consumed_usd and can be stale, so spend "
+    "may exceed a hard limit by at most (concurrent_runs - 1) x worst-case reservation. "
+    "One run overshoots by exactly zero, because model calls are serialized within a run. "
+    "Deliberate and bounded, not unnoticed (ADR-0019, ADR-0026)."
 )
 
 
