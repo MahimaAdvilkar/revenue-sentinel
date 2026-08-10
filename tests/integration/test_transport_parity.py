@@ -37,7 +37,9 @@ import json
 import os
 import sys
 from collections.abc import Iterator
+from dataclasses import replace
 from typing import Any
+from uuid import UUID
 
 import pytest
 import sqlalchemy as sa
@@ -47,9 +49,12 @@ from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
 from revenue_sentinel.core.config import PROJECT_ROOT, Settings
+from revenue_sentinel.db.models import governance as gov_orm
 from revenue_sentinel.db.models import gtm as gtm_orm
+from revenue_sentinel.db.models import observability as obs_orm
 from revenue_sentinel.db.seeding import seed_database
-from revenue_sentinel.governance.stub import StubPolicyEngine
+from revenue_sentinel.domain.enums import ToolCallStatus
+from revenue_sentinel.governance.stub import DenyAllPolicyEngine, StubPolicyEngine
 from revenue_sentinel.integrations.simulated.behaviour import SimulatedBehaviour
 from revenue_sentinel.mcp.client import InProcessMcpClient
 from revenue_sentinel.mcp.context import ToolContext, build_simulated_adapters
@@ -270,10 +275,158 @@ def test_an_unknown_argument_is_rejected_over_stdio(
     assert result["payload"]["error"]["code"] == "INVALID_ARGUMENTS"
 
 
-# A stdio equivalent of "a write with no policy engine is refused" is deliberately
-# absent. The guarantee itself is proven four ways in test_mcp_dispatch.py against the
-# same dispatcher this transport delegates to. Over stdio the refusal surfaces as a
-# server-side failure whose exact client-visible shape I did not pin down, and
-# asserting a shape I have not verified would be worse than not asserting it.
-# Open question for Session 5: should a missing engine be a typed POLICY_DENIED-style
-# result over the wire, or stay a hard misconfiguration failure?
+# ---------------------------------------------------------------------------
+# The missing-policy-engine refusal, pinned over the wire (Session 11)
+# ---------------------------------------------------------------------------
+# This was deliberately unasserted through Sessions 4-10, with an honest note saying the
+# client-visible shape had not been pinned down. It was measured before being changed:
+# the refusal escaped `dispatch` as a bare `MissingPolicyEngineError`, and the SDK turned
+# it into a protocol-level `MCPError` -- no envelope, no code, no `integration_status`,
+# and nothing a client could use to tell a misconfigured server from a crashed one. It
+# failed closed, which was right, and it said nothing, which was not.
+#
+# It is now a typed `POLICY_ENGINE_UNAVAILABLE` envelope, distinct from `POLICY_DENIED`
+# because a denial is a decision about the request and this is a deployment fault.
+WRITE_CALL: tuple[str, dict[str, Any]] = (
+    "crm_create_task",
+    {
+        "opportunity_ref": "OPP-2001",
+        "title": "parity probe",
+        "description": "must never reach an adapter",
+        "due_date": "2026-08-15",
+        "assignee_ref": "USR-1",
+    },
+)
+
+
+class SpyCrmAdapter:
+    """Records any call. The point is that it records none."""
+
+    def __init__(self) -> None:
+        self.calls: list[str] = []
+
+    def __getattr__(self, name: str) -> Any:
+        def _record(*_: object, **__: object) -> None:
+            self.calls.append(name)
+            raise AssertionError(f"adapter.{name} was reached despite no policy engine")
+
+        return _record
+
+
+def _unpoliced_in_process(
+    session: Session, settings: Settings, *, run_id: UUID | None = None
+) -> tuple[Any, SpyCrmAdapter]:
+    """An in-process client with **no** policy engine and a spy CRM adapter.
+
+    `run_id` is optional because the ledger only writes when a run is bound -- which is
+    the same reason the stdio server, which has no run, writes nothing. The ledger
+    assertion below binds one so there is a row to inspect.
+    """
+    spy = SpyCrmAdapter()
+    adapters = build_simulated_adapters(session, SimulatedBehaviour())
+    context = ToolContext(
+        session=session,
+        adapters=replace(adapters, crm=spy),
+        occurred_at=settings.evaluation_timestamp,
+        node_name="parity",
+        run_id=run_id,
+        policy=None,
+    )
+    return InProcessMcpClient(context), spy
+
+
+def test_a_write_with_no_policy_engine_is_a_typed_error_over_stdio(
+    committed_scenario: None, server_env: dict[str, str]
+) -> None:
+    """`scripts/mcp_server.py` binds `policy=None` deliberately, so this is the real path."""
+    result = over_stdio([WRITE_CALL], server_env)["results"]["crm_create_task"]
+
+    assert result["is_error"] is True
+    error = result["payload"]["error"]
+    assert error["code"] == "POLICY_ENGINE_UNAVAILABLE"
+    assert error["code"] != "POLICY_DENIED", "a deployment fault is not a policy decision"
+    assert error["retry"] is False
+    assert error["alternative_route"] is False
+    assert error["detail"] == {
+        "tool": "crm_create_task",
+        "tier": 1,
+        "reason": "no_policy_engine_bound",
+    }
+    assert result["payload"]["ok"] is False
+    assert result["payload"]["integration_status"] == "SIMULATED"
+
+
+def test_the_refusal_is_identical_in_process_and_over_stdio(
+    committed_scenario: None,
+    server_env: dict[str, str],
+    seeded_session: Session,
+    settings: Settings,
+) -> None:
+    """Payload equality, the same assertion the successful reads get."""
+    client, _ = _unpoliced_in_process(seeded_session, settings)
+    name, arguments = WRITE_CALL
+    local = client.call_tool(name, arguments)
+    remote = over_stdio([WRITE_CALL], server_env)["results"]["crm_create_task"]["payload"]
+
+    assert local == remote
+
+
+def test_the_adapter_is_never_reached(seeded_session: Session, settings: Settings) -> None:
+    """The gate runs before the handler, so the write never touches an adapter."""
+    client, spy = _unpoliced_in_process(seeded_session, settings)
+    name, arguments = WRITE_CALL
+
+    envelope = client.call_tool(name, arguments)
+
+    assert envelope["ok"] is False
+    assert spy.calls == []
+
+
+def test_the_ledger_records_the_refusal_and_claims_no_success(
+    investigated: Any, seeded_session: Session, settings: Settings
+) -> None:
+    """A refused write must be recorded as refused -- never as a success, never as a
+    generic error a reader could mistake for a partial attempt."""
+    before_actions = seeded_session.scalar(
+        sa.select(sa.func.count()).select_from(gov_orm.ActionRecord)
+    )
+    # The golden run already executed a successful `crm_create_task`, so the refusal is
+    # identified by *which row is new* rather than by ordering -- UUIDs are not
+    # chronological and `created_at` is the transaction timestamp.
+    before_calls = set(seeded_session.scalars(sa.select(obs_orm.ToolCall.id)).all())
+
+    client, _ = _unpoliced_in_process(seeded_session, settings, run_id=investigated.run_id)
+    name, arguments = WRITE_CALL
+
+    client.call_tool(name, arguments)
+
+    call = seeded_session.scalars(
+        sa.select(obs_orm.ToolCall).where(obs_orm.ToolCall.id.not_in(before_calls))
+    ).one()
+    assert call.tool_name == "crm_create_task"
+    assert call.status is ToolCallStatus.DENIED
+    assert call.status is not ToolCallStatus.SUCCESS
+    # And no action record was created, let alone a succeeded one.
+    assert (
+        seeded_session.scalar(sa.select(sa.func.count()).select_from(gov_orm.ActionRecord))
+        == before_actions
+    )
+
+
+def test_policy_denied_and_approval_required_are_unchanged(
+    seeded_session: Session, settings: Settings
+) -> None:
+    """The new code must not have absorbed the two refusals that already existed."""
+    context = ToolContext(
+        session=seeded_session,
+        adapters=build_simulated_adapters(seeded_session, SimulatedBehaviour()),
+        occurred_at=settings.evaluation_timestamp,
+        node_name="parity",
+        policy=DenyAllPolicyEngine(),
+    )
+    name, arguments = WRITE_CALL
+
+    envelope = InProcessMcpClient(context).call_tool(name, arguments)
+
+    assert envelope["error"]["code"] == "POLICY_DENIED"
+    assert envelope["error"]["retry"] is False

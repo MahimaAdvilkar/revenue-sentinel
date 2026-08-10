@@ -184,9 +184,28 @@ def test_no_adapter_exposes_a_send_capability() -> None:
 # ---------------------------------------------------------------------------
 # Error policy
 # ---------------------------------------------------------------------------
-def test_all_seven_error_codes_have_a_policy() -> None:
+def test_every_error_code_has_a_policy() -> None:
+    """Eight as of Session 11: `POLICY_ENGINE_UNAVAILABLE` joined the seven.
+
+    The count is pinned so a code added without an agent-facing policy fails here rather
+    than reaching a client with no guidance about what to do next.
+    """
     assert set(ERROR_POLICY) == set(ToolErrorCode)
-    assert len(ToolErrorCode) == 7
+    assert len(ToolErrorCode) == 8
+
+
+def test_an_unavailable_policy_engine_is_not_a_denial() -> None:
+    """A denial is a decision about the request; this is a deployment fault.
+
+    Collapsing them would send an operator looking for a rule that refused them, and
+    there is no rule -- there is no engine.
+    """
+    unavailable = ERROR_POLICY[ToolErrorCode.POLICY_ENGINE_UNAVAILABLE]
+
+    assert ToolErrorCode.POLICY_ENGINE_UNAVAILABLE is not ToolErrorCode.POLICY_DENIED
+    assert unavailable.retry is False
+    assert unavailable.alternative_route is False
+    assert "misconfigured" in unavailable.guidance
 
 
 def test_policy_denied_forbids_retry_and_rerouting() -> None:

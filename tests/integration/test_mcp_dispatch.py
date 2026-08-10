@@ -35,7 +35,6 @@ from revenue_sentinel.integrations.simulated.behaviour import (
 from revenue_sentinel.mcp.context import ToolContext, build_simulated_adapters
 from revenue_sentinel.mcp.dispatcher import CallCounter, dispatch
 from revenue_sentinel.mcp.errors import ToolErrorCode
-from revenue_sentinel.mcp.gate import MissingPolicyEngineError
 from revenue_sentinel.mcp.registry import REGISTRY, TOOL_SPECS
 
 FAR_PAST = datetime(1970, 1, 1, tzinfo=UTC).isoformat()
@@ -271,14 +270,27 @@ class SpyCrmAdapter:
         "messaging_send_slack_approval",
     ],
 )
-def test_a_write_without_a_policy_engine_raises(
+def test_a_write_without_a_policy_engine_is_refused(
     tool_name: str, detected: Session, settings: Settings
 ) -> None:
-    """A system that can be configured into unauthorised writes eventually performs one."""
+    """A system that can be configured into unauthorised writes eventually performs one.
+
+    Session 11 changed the *shape* of this refusal, not its force. It used to escape the
+    dispatcher as `MissingPolicyEngineError`, which over stdio became a protocol-level
+    error with no envelope -- indistinguishable from a crash. It is now a typed
+    `POLICY_ENGINE_UNAVAILABLE` result. Still fails closed; now says so.
+    """
     context = make_context(detected, settings, policy=None)
 
-    with pytest.raises(MissingPolicyEngineError, match="cannot execute without a decision"):
-        dispatch(tool_name, HAPPY_ARGS[tool_name], context)
+    envelope = dispatch(tool_name, HAPPY_ARGS[tool_name], context)
+
+    assert envelope["ok"] is False
+    error = envelope["error"]
+    assert error["code"] == ToolErrorCode.POLICY_ENGINE_UNAVAILABLE.value
+    assert error["code"] != ToolErrorCode.POLICY_DENIED.value
+    assert error["retry"] is False
+    assert error["alternative_route"] is False
+    assert "cannot execute without a decision" in error["message"]
 
 
 def test_a_denied_write_never_reaches_its_adapter(detected: Session, settings: Settings) -> None:

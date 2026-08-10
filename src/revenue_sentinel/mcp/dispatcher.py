@@ -119,7 +119,14 @@ def dispatch(
         result = error_envelope(tool=tool_name, integration_status=integration_status, failure=exc)
         status = (
             ToolCallStatus.DENIED
-            if exc.code in (ToolErrorCode.POLICY_DENIED, ToolErrorCode.APPROVAL_REQUIRED)
+            if exc.code
+            in (
+                ToolErrorCode.POLICY_DENIED,
+                ToolErrorCode.APPROVAL_REQUIRED,
+                # Nothing was executed, so the ledger must not call this a generic
+                # error that a reader might mistake for a partial attempt.
+                ToolErrorCode.POLICY_ENGINE_UNAVAILABLE,
+            )
             else ToolCallStatus.ERROR
         )
 

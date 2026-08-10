@@ -25,6 +25,14 @@ class ToolErrorCode(StrEnum):
     INVALID_ARGUMENTS = "INVALID_ARGUMENTS"
     NOT_FOUND = "NOT_FOUND"
     POLICY_DENIED = "POLICY_DENIED"
+    POLICY_ENGINE_UNAVAILABLE = "POLICY_ENGINE_UNAVAILABLE"
+    """No policy engine is bound, so no decision about this write can exist.
+
+    Deliberately **not** `POLICY_DENIED`. A denial is a decision about the request;
+    this is a deployment fault, and collapsing the two would let a misconfigured server
+    read as a policy outcome -- an operator would go looking for the rule that refused
+    them, and there is no rule. Both fail closed and neither is retryable."""
+
     APPROVAL_REQUIRED = "APPROVAL_REQUIRED"
     RATE_LIMITED = "RATE_LIMITED"
     BUDGET_EXCEEDED = "BUDGET_EXCEEDED"
@@ -57,6 +65,15 @@ ERROR_POLICY: Final[dict[ToolErrorCode, ErrorPolicy]] = {
         guidance=(
             "The policy layer refused this action. Stop. Do not retry, and do not "
             "attempt to achieve the same effect through a different tool."
+        ),
+    ),
+    ToolErrorCode.POLICY_ENGINE_UNAVAILABLE: ErrorPolicy(
+        retry=False,
+        alternative_route=False,
+        guidance=(
+            "The server is misconfigured: a write tool was reached with no policy "
+            "engine bound. This is not a decision about your request. Stop, and do "
+            "not attempt the same effect through a different tool."
         ),
     ),
     ToolErrorCode.APPROVAL_REQUIRED: ErrorPolicy(

@@ -38,7 +38,14 @@ class PolicyEngine(Protocol):
 
 
 class MissingPolicyEngineError(RuntimeError):
-    """A write tool was invoked with no policy engine bound."""
+    """A write tool was invoked with no policy engine bound.
+
+    Retained for callers that catch it directly. `authorize_write` raises a
+    `ToolFailureError` instead, so the refusal reaches a client as a typed envelope
+    rather than escaping the dispatcher as an unhandled exception -- which is what it
+    used to do: over stdio the SDK turned it into a protocol-level `MCPError` with no
+    envelope, no code, and nothing to distinguish it from a server crash.
+    """
 
 
 def authorize_write(
@@ -46,9 +53,12 @@ def authorize_write(
 ) -> PolicyOutcome:
     """Return the decision, or raise/fail. Never returns without one."""
     if engine is None:
-        raise MissingPolicyEngineError(
+        # Fails closed either way; what changed is that the client can now *tell*.
+        raise ToolFailureError(
+            ToolErrorCode.POLICY_ENGINE_UNAVAILABLE,
             f"{tool_name} is a write tool and no policy engine is bound. "
-            f"Write tools cannot execute without a decision."
+            f"Write tools cannot execute without a decision.",
+            detail={"tool": tool_name, "tier": tier.value, "reason": "no_policy_engine_bound"},
         )
 
     outcome = engine.authorize(tool_name=tool_name, tier=tier, arguments=arguments)
